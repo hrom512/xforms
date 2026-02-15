@@ -1,6 +1,7 @@
 package xforms
 
 import (
+	"encoding/xml"
 	"strconv"
 	"strings"
 
@@ -92,7 +93,6 @@ type SelectOption struct {
 func (*SelectInput) FormElement() {}
 
 // ComplexInput represents an input bound to an XSD complexType.
-// Value contains the instance field content (inner XML) as a string.
 type ComplexInput struct {
 	Name  string
 	Label string
@@ -108,7 +108,15 @@ type ComplexInput struct {
 	Help  string
 	Hint  string
 
-	Value *string
+	// RawValue is the instance field content (inner XML) as a string.
+	// For values represented as nested tags, it is in stable "innerxml" form
+	// (whitespace between tags is normalized).
+	RawValue *string
+
+	// Value is a best-effort map of direct nested tag values under this field.
+	// Keys are local tag names; values are tag inner XML (trimmed).
+	// If RawValue does not contain nested XML or parsing fails, Value is nil.
+	Value map[string]string
 }
 
 func (*ComplexInput) FormElement() {}
@@ -202,7 +210,8 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 			if v, ok := f.instanceFieldValue(name); ok {
 				txt := strings.TrimSpace(v)
 				if txt != "" {
-					ci.Value = &txt
+					ci.RawValue = &txt
+					ci.Value = complexValueMapFromRaw(txt)
 				}
 			}
 			return ci
@@ -406,4 +415,51 @@ func fieldNameFromRef(ref string) string {
 	}
 	ref = strings.TrimSpace(ref)
 	return qnameLocal(ref)
+}
+
+func complexValueMapFromRaw(raw string) map[string]string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || !strings.Contains(raw, "<") {
+		return nil
+	}
+
+	// Wrap the inner XML into a synthetic root to make it well-formed.
+	wrapped := "<root>" + raw + "</root>"
+	d := xml.NewDecoder(strings.NewReader(wrapped))
+
+	out := map[string]string{}
+	var depth int
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return nil
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			depth++
+			// Depth 1 is <root>, depth 2 are direct children.
+			if depth == 2 {
+				var inner struct {
+					Inner string `xml:",innerxml"`
+				}
+				if err := d.DecodeElement(&inner, &t); err != nil {
+					return nil
+				}
+				v := strings.TrimSpace(inner.Inner)
+				if strings.Contains(v, "<") {
+					v = intertagWhitespace.ReplaceAllString(v, "><")
+				}
+				out[qnameLocal(t.Name.Local)] = v
+				depth-- // DecodeElement consumed the corresponding EndElement.
+			}
+		case xml.EndElement:
+			depth--
+			if depth == 0 {
+				if len(out) == 0 {
+					return nil
+				}
+				return out
+			}
+		}
+	}
 }

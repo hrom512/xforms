@@ -335,8 +335,6 @@ func TestElements_ComplexTypeBindType_ProducesComplexInputWithComplexType(t *tes
 		t.Fatalf("Parse() error: %v", err)
 	}
 
-	sp := func(s string) *string { return &s }
-
 	want := []FormElement{
 		&ComplexInput{
 			Name:     "obj",
@@ -353,7 +351,10 @@ func TestElements_ComplexTypeBindType_ProducesComplexInputWithComplexType(t *tes
 			Alert: "",
 			Help:  "",
 			Hint:  "",
-			Value: sp("<a>some value</a>"),
+			RawValue: strPtr("<a>some value</a>"),
+			Value: map[string]string{
+				"a": "some value",
+			},
 		},
 	}
 

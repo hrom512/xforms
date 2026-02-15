@@ -1,8 +1,12 @@
 package xforms
 
 import (
+	"bytes"
+	"encoding/xml"
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 )
 
 // Fill adds the passed field values to the contents of FormInstance
@@ -124,11 +128,15 @@ func (f *Form) collectFillUpdates(fieldValues []FormElement) (map[string]string,
 			if b := bindByField[name]; b != nil && b.Readonly {
 				return nil, fmt.Errorf("field %q is readonly", name)
 			}
+			if v.RawValue != nil {
+				updates[name] = *v.RawValue
+				continue
+			}
 			if v.Value == nil {
 				updates[name] = ""
-			} else {
-				updates[name] = *v.Value
+				continue
 			}
+			updates[name] = complexRawValueFromMap(v.Value, v.ComplexType)
 
 		case *FieldGroup, *TextMessage:
 			// ignore
@@ -137,6 +145,56 @@ func (f *Form) collectFillUpdates(fieldValues []FormElement) (map[string]string,
 		}
 	}
 	return updates, nil
+}
+
+func complexRawValueFromMap(m map[string]string, ct *FormSchemaComplexType) string {
+	if len(m) == 0 {
+		return ""
+	}
+
+	used := map[string]struct{}{}
+	var ordered []string
+	if ct != nil {
+		for _, decl := range ct.All {
+			k := qnameLocal(strings.TrimSpace(decl.Name))
+			if k == "" {
+				continue
+			}
+			if _, ok := m[k]; ok {
+				ordered = append(ordered, k)
+				used[k] = struct{}{}
+			}
+		}
+	}
+
+	var rest []string
+	for k := range m {
+		if _, ok := used[k]; ok {
+			continue
+		}
+		rest = append(rest, k)
+	}
+	sort.Strings(rest)
+	ordered = append(ordered, rest...)
+
+	var buf bytes.Buffer
+	for _, k := range ordered {
+		v := m[k]
+		buf.WriteString("<")
+		buf.WriteString(k)
+		buf.WriteString(">")
+		if strings.Contains(v, "<") {
+			// Treat as inner XML.
+			buf.WriteString(v)
+		} else {
+			// Treat as text.
+			_ = xml.EscapeText(&buf, []byte(v))
+		}
+		buf.WriteString("</")
+		buf.WriteString(k)
+		buf.WriteString(">")
+	}
+	return buf.String()
 }
 
 func (f *Form) applyInstanceUpdates(updates map[string]string) {
