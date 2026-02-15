@@ -37,6 +37,7 @@ const sampleXFormsXML = `<?xml version="1.0" encoding="UTF-8"?>
               <xsd:element name="field_PERSONAL_ACCOUNT" nillable="false" type="demo:PERSONAL_ACCOUNT"/>
               <xsd:element name="field_TERMINALID" nillable="false" type="demo:TERMINALID"/>
               <xsd:element name="field_CHECK_TEXT" nillable="true" type="demo:CHECK_TEXT"/>
+              <xsd:element name="field_SUM" nillable="false" type="demo:SumCheck"/>
             </xsd:all>
           </xsd:complexType>
         </xsd:element>
@@ -47,11 +48,16 @@ const sampleXFormsXML = `<?xml version="1.0" encoding="UTF-8"?>
           <field_PERSONAL_ACCOUNT>012345678</field_PERSONAL_ACCOUNT>
           <field_TERMINALID>testTerminal01</field_TERMINALID>
           <field_CHECK_TEXT/>
+          <field_SUM>
+            <sum>10.95</sum>
+            <check>true</check>
+          </field_SUM>
         </demo:xmlData>
       </xforms:instance>
       <xforms:bind exttype="PERSONAL_ACCOUNT" nodeset="field_PERSONAL_ACCOUNT" readonly="false" relevant="true()" required="true" type="demo:PERSONAL_ACCOUNT"/>
       <xforms:bind exttype="PARAMETER" nodeset="field_TERMINALID" readonly="false" relevant="false()" required="true" type="demo:TERMINALID"/>
       <xforms:bind exttype="CLIENT" nodeset="field_CHECK_TEXT" readonly="true" relevant="false()" required="false" type="demo:CHECK_TEXT"/>
+      <xforms:bind exttype="SUM" nodeset="field_SUM" readonly="true" relevant="false()" required="false" type="demo:SumCheck"/>
       <xforms:submission action="http://localhost/" id="submission.back" method="get"/>
       <xforms:submission action="http://localhost/" id="submission.next" method="get"/>
       <xforms:submission action="http://localhost/" id="submission.pay" method="get"/>
@@ -124,6 +130,7 @@ func TestParse_SampleXForms(t *testing.T) {
 							{Name: "field_PERSONAL_ACCOUNT", TypeQName: "demo:PERSONAL_ACCOUNT", Nillable: bp(false)},
 							{Name: "field_TERMINALID", TypeQName: "demo:TERMINALID", Nillable: bp(false)},
 							{Name: "field_CHECK_TEXT", TypeQName: "demo:CHECK_TEXT", Nillable: bp(true)},
+							{Name: "field_SUM", TypeQName: "demo:SumCheck", Nillable: bp(false)},
 						},
 					},
 				},
@@ -132,10 +139,11 @@ func TestParse_SampleXForms(t *testing.T) {
 		Instance: FormInstance{
 			Root: xml.Name{Space: "urn:demo-xforms", Local: "xmlData"},
 			Fields: map[string]FormInstanceField{
-				"transactionId":          {Name: "transactionId", Namespace: "", Value: "456803", IsNil: false},
-				"field_PERSONAL_ACCOUNT": {Name: "field_PERSONAL_ACCOUNT", Namespace: "", Value: "012345678", IsNil: false},
-				"field_TERMINALID":       {Name: "field_TERMINALID", Namespace: "", Value: "testTerminal01", IsNil: false},
-				"field_CHECK_TEXT":       {Name: "field_CHECK_TEXT", Namespace: "", Value: "", IsNil: false},
+				"transactionId":          {Name: "transactionId", Value: "456803"},
+				"field_PERSONAL_ACCOUNT": {Name: "field_PERSONAL_ACCOUNT", Value: "012345678"},
+				"field_TERMINALID":       {Name: "field_TERMINALID", Value: "testTerminal01"},
+				"field_CHECK_TEXT":       {Name: "field_CHECK_TEXT", Value: ""},
+				"field_SUM":              {Name: "field_SUM", Value: "<sum>10.95</sum><check>true</check>"},
 			},
 		},
 		Binds: []*FormBind{
@@ -168,6 +176,15 @@ func TestParse_SampleXForms(t *testing.T) {
 				Required:    false,
 				Readonly:    true,
 				Relevant:    false,
+				RawRequired: "false",
+				RawReadonly: "true",
+				RawRelevant: "false()",
+			},
+			{
+				Nodeset:     "field_SUM",
+				TypeQName:   sp("demo:SumCheck"),
+				ExtType:     sp("SUM"),
+				Readonly:    true,
 				RawRequired: "false",
 				RawReadonly: "true",
 				RawRelevant: "false()",
@@ -268,5 +285,53 @@ func TestParse_Errors(t *testing.T) {
 				t.Fatalf("expected error to contain %q, got %q", tt.wantErrSub, err.Error())
 			}
 		})
+	}
+}
+
+func TestParse_InstanceComplexTypeValue_IsCapturedAsInnerXML(t *testing.T) {
+	const xml = `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test">
+        <complexType name="ObjType">
+          <all>
+            <element name="a" type="xsd:string"/>
+            <element name="sum" type="xsd:decimal"/>
+            <element name="check" type="xsd:boolean"/>
+          </all>
+        </complexType>
+        <element name="data">
+          <complexType>
+            <all>
+              <element name="obj" nillable="false" type="ObjType"/>
+            </all>
+          </complexType>
+        </element>
+      </schema>
+      <instance>
+        <data>
+          <obj>
+            <a>demo</a>
+            <sum>1.00</sum>
+            <check>true</check>
+          </obj>
+        </data>
+      </instance>
+      <bind nodeset="obj" relevant="true()" required="false" type="ObjType"/>
+    </model>
+  </head>
+  <body></body>
+</html>`
+
+	f, err := Parse(strings.NewReader(xml))
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+
+	got := strings.TrimSpace(f.Instance.Fields["obj"].Value)
+	want := "<a>demo</a><sum>1.00</sum><check>true</check>"
+	if got != want {
+		t.Fatalf("unexpected complex value:\nwant: %q\ngot:  %q", want, got)
 	}
 }

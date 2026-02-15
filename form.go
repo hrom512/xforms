@@ -3,6 +3,7 @@ package xforms
 import (
 	"encoding/xml"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -98,6 +99,8 @@ type FormInstanceField struct {
 	Value     string
 	IsNil     bool
 }
+
+var intertagWhitespace = regexp.MustCompile(`>\s+<`)
 
 func (fi FormInstance) Clone() FormInstance {
 	out := FormInstance{
@@ -283,13 +286,20 @@ func (fi *FormInstance) decodeInstanceRoot(d *xml.Decoder, root xml.StartElement
 					}
 				}
 			}
-			var cd struct {
-				Text string `xml:",chardata"`
+			// Use innerxml to support complexType instance values (nested elements).
+			var inner struct {
+				Inner string `xml:",innerxml"`
 			}
-			if err := d.DecodeElement(&cd, &t); err != nil {
+			if err := d.DecodeElement(&inner, &t); err != nil {
 				return err
 			}
-			field.Value = cd.Text
+			v := inner.Inner
+			// If the value contains nested XML, normalize whitespace between tags to make it stable.
+			if strings.Contains(v, "<") {
+				v = strings.TrimSpace(v)
+				v = intertagWhitespace.ReplaceAllString(v, "><")
+			}
+			field.Value = v
 			fi.Fields[t.Name.Local] = field
 		case xml.EndElement:
 			if t.Name.Local == root.Name.Local {
