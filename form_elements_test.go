@@ -20,19 +20,17 @@ func TestForm_Elements_Sample(t *testing.T) {
 			Label: "",
 			Elements: []FormElement{
 				&TextInput{
-					BaseInput: BaseInput{
-						Name:     "a3_PERSONAL_ACCOUNT_1_1",
-						Label:    "Personal account number:",
-						ExtType:  sp("PERSONAL_ACCOUNT"),
-						Required: true,
-						Readonly: false,
-						SimpleType: &FormSchemaSimpleType{
-							Name:          "PERSONAL_ACCOUNT_1_1",
-							BaseTypeQName: "xsd:string",
-							Pattern:       sp("^\\d{10}$"),
-						},
-						ComplexType: nil,
+					Name:     "a3_PERSONAL_ACCOUNT_1_1",
+					Label:    "Personal account number:",
+					ExtType:  sp("PERSONAL_ACCOUNT"),
+					Required: true,
+					Readonly: false,
+					SimpleType: &FormSchemaSimpleType{
+						Name:          "PERSONAL_ACCOUNT_1_1",
+						BaseTypeQName: "xsd:string",
+						Pattern:       sp("^\\d{10}$"),
 					},
+					ComplexType: nil,
 					Alert: "Incorrect personal account number format!",
 					Help:  "Example of completion: 1234567890",
 					Hint:  "",

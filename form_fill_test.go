@@ -16,7 +16,7 @@ func TestForm_Fill_UpdatesOnlyProvidedFields(t *testing.T) {
 	newVal := "0123456789"
 	err = f.Fill([]FormElement{
 		&TextInput{
-			BaseInput: BaseInput{Name: "a3_PERSONAL_ACCOUNT_1_1"},
+			Name:      "a3_PERSONAL_ACCOUNT_1_1",
 			Value:     &newVal,
 		},
 	})
@@ -43,7 +43,7 @@ func TestForm_ValidateAndFill_IsAtomic(t *testing.T) {
 	bad := "1"
 	err = f.ValidateAndFill([]FormElement{
 		&TextInput{
-			BaseInput: BaseInput{Name: "a3_PERSONAL_ACCOUNT_1_1"},
+			Name:      "a3_PERSONAL_ACCOUNT_1_1",
 			Value:     &bad,
 		},
 	})

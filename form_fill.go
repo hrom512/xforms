@@ -53,7 +53,7 @@ func (f *Form) collectFillUpdates(fieldValues []FormElement) (map[string]string,
 	for _, el := range fieldValues {
 		switch v := el.(type) {
 		case *TextInput:
-			name := v.BaseInput.Name
+			name := v.Name
 			if name == "" {
 				continue
 			}
@@ -67,7 +67,7 @@ func (f *Form) collectFillUpdates(fieldValues []FormElement) (map[string]string,
 			}
 
 		case *DecimalInput:
-			name := v.BaseInput.Name
+			name := v.Name
 			if name == "" {
 				continue
 			}
@@ -81,7 +81,7 @@ func (f *Form) collectFillUpdates(fieldValues []FormElement) (map[string]string,
 			}
 
 		case *CheckboxInput:
-			name := v.BaseInput.Name
+			name := v.Name
 			if name == "" {
 				continue
 			}
@@ -95,7 +95,7 @@ func (f *Form) collectFillUpdates(fieldValues []FormElement) (map[string]string,
 			}
 
 		case *SelectInput:
-			name := v.BaseInput.Name
+			name := v.Name
 			if name == "" {
 				continue
 			}

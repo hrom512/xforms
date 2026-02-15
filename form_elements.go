@@ -12,7 +12,7 @@ type FormElement interface {
 	FormElement()
 }
 
-type BaseInput struct {
+type TextInput struct {
 	Name  string
 	Label string
 
@@ -24,10 +24,6 @@ type BaseInput struct {
 	// One of SimpleType or ComplexType is filled
 	SimpleType  *FormSchemaSimpleType
 	ComplexType *FormSchemaComplexType
-}
-
-type TextInput struct {
-	BaseInput
 
 	Alert string
 	Help  string
@@ -39,7 +35,17 @@ type TextInput struct {
 func (*TextInput) FormElement() {}
 
 type DecimalInput struct {
-	BaseInput
+	Name  string
+	Label string
+
+	ExtType *string
+
+	Required bool
+	Readonly bool
+
+	// One of SimpleType or ComplexType is filled
+	SimpleType  *FormSchemaSimpleType
+	ComplexType *FormSchemaComplexType
 
 	Alert string
 	Help  string
@@ -51,7 +57,17 @@ type DecimalInput struct {
 func (*DecimalInput) FormElement() {}
 
 type CheckboxInput struct {
-	BaseInput
+	Name  string
+	Label string
+
+	ExtType *string
+
+	Required bool
+	Readonly bool
+
+	// One of SimpleType or ComplexType is filled
+	SimpleType  *FormSchemaSimpleType
+	ComplexType *FormSchemaComplexType
 
 	Value *bool
 }
@@ -59,7 +75,17 @@ type CheckboxInput struct {
 func (*CheckboxInput) FormElement() {}
 
 type SelectInput struct {
-	BaseInput
+	Name  string
+	Label string
+
+	ExtType *string
+
+	Required bool
+	Readonly bool
+
+	// One of SimpleType or ComplexType is filled
+	SimpleType  *FormSchemaSimpleType
+	ComplexType *FormSchemaComplexType
 
 	Options []SelectOption
 
@@ -136,25 +162,29 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 			return nil
 		}
 
-		base := BaseInput{
-			Name:     name,
-			Label:    t.Label,
-			ExtType:  nil,
-			Required: false,
-			Readonly: false,
-		}
+		var extType *string
+		required := false
+		readonly := false
 		if b != nil {
-			base.ExtType = b.ExtType
-			base.Required = b.Required
-			base.Readonly = b.Readonly
+			extType = b.ExtType
+			required = b.Required
+			readonly = b.Readonly
 		}
-		base.SimpleType, base.ComplexType = f.resolveSchemaType(b, name)
+		simpleType, complexType := f.resolveSchemaType(b, name)
 
 		// Choose element type from base simple type.
-		if st := base.SimpleType; st != nil {
+		if st := simpleType; st != nil {
 			switch qnameLocal(st.BaseTypeQName) {
 			case "boolean":
-				ci := &CheckboxInput{BaseInput: base}
+				ci := &CheckboxInput{
+					Name:        name,
+					Label:       t.Label,
+					ExtType:     extType,
+					Required:    required,
+					Readonly:    readonly,
+					SimpleType:  simpleType,
+					ComplexType: complexType,
+				}
 				if v, ok := f.instanceFieldValue(name); ok {
 					txt := strings.TrimSpace(v)
 					if txt != "" {
@@ -166,10 +196,16 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 				return ci
 			case "decimal":
 				di := &DecimalInput{
-					BaseInput: base,
-					Alert:     t.Alert,
-					Help:      t.Help,
-					Hint:      t.Hint,
+					Name:        name,
+					Label:       t.Label,
+					ExtType:     extType,
+					Required:    required,
+					Readonly:    readonly,
+					SimpleType:  simpleType,
+					ComplexType: complexType,
+					Alert:       t.Alert,
+					Help:        t.Help,
+					Hint:        t.Hint,
 				}
 				if v, ok := f.instanceFieldValue(name); ok {
 					txt := strings.TrimSpace(v)
@@ -184,10 +220,16 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 		}
 
 		ti := &TextInput{
-			BaseInput: base,
-			Alert:     t.Alert,
-			Help:      t.Help,
-			Hint:      t.Hint,
+			Name:        name,
+			Label:       t.Label,
+			ExtType:     extType,
+			Required:    required,
+			Readonly:    readonly,
+			SimpleType:  simpleType,
+			ComplexType: complexType,
+			Alert:       t.Alert,
+			Help:        t.Help,
+			Hint:        t.Hint,
 		}
 		if v, ok := f.instanceFieldValue(name); ok {
 			txt := strings.TrimSpace(v)
@@ -206,22 +248,24 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 			return nil
 		}
 
-		base := BaseInput{
-			Name:     name,
-			Label:    t.Label,
-			ExtType:  nil,
-			Required: false,
-			Readonly: false,
-		}
+		var extType *string
+		required := false
+		readonly := false
 		if b != nil {
-			base.ExtType = b.ExtType
-			base.Required = b.Required
-			base.Readonly = b.Readonly
+			extType = b.ExtType
+			required = b.Required
+			readonly = b.Readonly
 		}
-		base.SimpleType, base.ComplexType = f.resolveSchemaType(b, name)
+		simpleType, complexType := f.resolveSchemaType(b, name)
 
 		si := &SelectInput{
-			BaseInput: base,
+			Name:        name,
+			Label:       t.Label,
+			ExtType:     extType,
+			Required:    required,
+			Readonly:    readonly,
+			SimpleType:  simpleType,
+			ComplexType: complexType,
 		}
 		for _, it := range t.Items {
 			si.Options = append(si.Options, SelectOption{Label: it.Label, Value: it.Value})
