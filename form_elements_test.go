@@ -1,6 +1,7 @@
 package xforms
 
 import (
+	"encoding/xml"
 	"strings"
 	"testing"
 
@@ -373,6 +374,138 @@ func TestMarkerMethods_FormElements(t *testing.T) {
 	(&ComplexInput{}).FormElement()
 	(&TextMessage{}).FormElement()
 	(&FieldGroup{}).FormElement()
+}
+
+func TestResolveSchemaType_CoversFallbackBranches(t *testing.T) {
+	f := &Form{
+		Schema: FormSchema{
+			SimpleTypes: map[string]*FormSchemaSimpleType{
+				"S": {Name: "S", BaseTypeQName: "xsd:string"},
+			},
+			ComplexTypes: map[string]*FormSchemaComplexType{
+				"C": {Name: "C", All: []FormSchemaElementDecl{{Name: "a", TypeQName: "xsd:string"}}},
+			},
+			Elements: map[string]*FormSchemaElementDecl{
+				"root": {
+					Name: "root",
+					ComplexType: &FormSchemaComplexType{
+						All: []FormSchemaElementDecl{
+							{Name: "viaInlineComplex", ComplexType: &FormSchemaComplexType{Name: "", All: []FormSchemaElementDecl{{Name: "z", TypeQName: "xsd:string"}}}},
+							{Name: "viaDeclTypeQName", TypeQName: "xsd:boolean"},
+						},
+					},
+				},
+				"topComplexByTypeQName": {Name: "topComplexByTypeQName", TypeQName: "C"},
+				"topComplexInline":      {Name: "topComplexInline", ComplexType: &FormSchemaComplexType{Name: "", All: []FormSchemaElementDecl{{Name: "i", TypeQName: "xsd:string"}}}},
+				"topSimple":  {Name: "topSimple", TypeQName: "S"},
+			},
+		},
+		Instance: FormInstance{Root: xml.Name{Local: "root"}},
+	}
+
+	type gotPair struct {
+		Simple  *FormSchemaSimpleType
+		Complex *FormSchemaComplexType
+	}
+	tests := []struct {
+		name string
+		bind *FormBind
+		fld  string
+		want gotPair
+	}{
+		{
+			name: "explicit_bind_type_wins",
+			bind: &FormBind{Nodeset: "x", TypeQName: strPtr("xsd:decimal")},
+			fld:  "x",
+			want: gotPair{Simple: &FormSchemaSimpleType{Name: "decimal", BaseTypeQName: "xsd:decimal"}},
+		},
+		{
+			name: "blank_bind_type_falls_back_to_schema_decl_under_root",
+			bind: &FormBind{Nodeset: "viaDeclTypeQName", TypeQName: strPtr("   ")},
+			fld:  "viaDeclTypeQName",
+			want: gotPair{Simple: &FormSchemaSimpleType{Name: "boolean", BaseTypeQName: "xsd:boolean"}},
+		},
+		{
+			name: "schema_decl_inline_complex_type_is_used",
+			bind: &FormBind{Nodeset: "viaInlineComplex"},
+			fld:  "viaInlineComplex",
+			want: gotPair{Complex: &FormSchemaComplexType{Name: "", All: []FormSchemaElementDecl{{Name: "z", TypeQName: "xsd:string"}}}},
+		},
+		{
+			name: "top_level_schema_element_complex_fallback",
+			bind: &FormBind{Nodeset: "topComplexByTypeQName"},
+			fld:  "topComplexByTypeQName",
+			want: gotPair{Complex: &FormSchemaComplexType{Name: "C", All: []FormSchemaElementDecl{{Name: "a", TypeQName: "xsd:string"}}}},
+		},
+		{
+			name: "top_level_schema_element_inline_complex_fallback",
+			bind: &FormBind{Nodeset: "topComplexInline"},
+			fld:  "topComplexInline",
+			want: gotPair{Complex: &FormSchemaComplexType{Name: "", All: []FormSchemaElementDecl{{Name: "i", TypeQName: "xsd:string"}}}},
+		},
+		{
+			name: "top_level_schema_element_typeQName_fallback",
+			bind: &FormBind{Nodeset: "topSimple"},
+			fld:  "topSimple",
+			want: gotPair{Simple: &FormSchemaSimpleType{Name: "S", BaseTypeQName: "xsd:string"}},
+		},
+		{
+			name: "no_info_returns_nil",
+			bind: &FormBind{Nodeset: "missing"},
+			fld:  "missing",
+			want: gotPair{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			st, ct := f.resolveSchemaType(tt.bind, tt.fld)
+			got := gotPair{Simple: st, Complex: ct}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("resolveSchemaType mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestComplexValueMapFromRaw_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want map[string]string
+	}{
+		{name: "empty", raw: "", want: nil},
+		{name: "not_xml", raw: "text", want: nil},
+		{name: "malformed_xml", raw: "<a>", want: nil},
+		{name: "direct_children", raw: "<a>1</a><b><c>2</c></b>", want: map[string]string{"a": "1", "b": "<c>2</c>"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := complexValueMapFromRaw(tt.raw)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("complexValueMapFromRaw mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestFieldNameFromRef_ParsesPathsAndQNames(t *testing.T) {
+	type tc struct {
+		in   string
+		want string
+	}
+	tests := []tc{
+		{in: "", want: ""},
+		{in: " x ", want: "x"},
+		{in: "ns:x", want: "x"},
+		{in: "/a/b/ns:x", want: "x"},
+	}
+	for _, tt := range tests {
+		got := fieldNameFromRef(tt.in)
+		if diff := cmp.Diff(tt.want, got); diff != "" {
+			t.Fatalf("fieldNameFromRef(%q) mismatch (-want +got):\n%s", tt.in, diff)
+		}
+	}
 }
 
 // helpers

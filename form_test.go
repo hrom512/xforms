@@ -3,6 +3,8 @@ package xforms
 import (
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestParse_SchemaInvalidNillableBool_ReturnsError(t *testing.T) {
@@ -98,13 +100,31 @@ func TestSchemaSimpleTypeFacets_AreParsed(t *testing.T) {
 		t.Fatalf("Parse() error: %v", err)
 	}
 
-	st := f.Schema.SimpleTypes["S"]
-	if st == nil || st.MinLength == nil || st.MaxLength == nil || len(st.Enumeration) != 2 {
-		t.Fatalf("unexpected parsed S facets: %#v", st)
+	ip := func(i int) *int { return &i }
+	sp := func(s string) *string { return &s }
+	want := map[string]*FormSchemaSimpleType{
+		"S": {
+			Name:          "S",
+			BaseTypeQName: "xsd:string",
+			MinLength:     ip(1),
+			MaxLength:     ip(5),
+			Enumeration:   []string{"a", "b"},
+		},
+		"D": {
+			Name:          "D",
+			BaseTypeQName: "xsd:decimal",
+			TotalDigits:   ip(4),
+			FractionDigits: ip(2),
+			MinInclusive:  sp("0.01"),
+			MaxInclusive:  sp("99.99"),
+		},
 	}
-	dt := f.Schema.SimpleTypes["D"]
-	if dt == nil || dt.TotalDigits == nil || dt.FractionDigits == nil || dt.MinInclusive == nil || dt.MaxInclusive == nil {
-		t.Fatalf("unexpected parsed D facets: %#v", dt)
+	got := map[string]*FormSchemaSimpleType{
+		"S": f.Schema.SimpleTypes["S"],
+		"D": f.Schema.SimpleTypes["D"],
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("parsed facets mismatch (-want +got):\n%s", diff)
 	}
 }
 

@@ -3,6 +3,9 @@ package xforms
 import (
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/shopspring/decimal"
 )
 
 func TestForm_Validate_SampleDetectsPatternMismatch(t *testing.T) {
@@ -11,18 +14,14 @@ func TestForm_Validate_SampleDetectsPatternMismatch(t *testing.T) {
 		t.Fatalf("Parse() error: %v", err)
 	}
 	err = f.Validate()
-	if err == nil {
-		t.Fatalf("expected validation error, got nil")
+	got := asValidationError(err)
+	want := &ValidationError{
+		FieldErrors: map[string][]string{
+			"field_PERSONAL_ACCOUNT": {"does not match required pattern"},
+		},
 	}
-	ve, ok := err.(*ValidationError)
-	if !ok {
-		t.Fatalf("expected *ValidationError, got %T (%v)", err, err)
-	}
-	if len(ve.FieldErrors) == 0 {
-		t.Fatalf("expected at least one field error")
-	}
-	if _, ok := ve.FieldErrors["field_PERSONAL_ACCOUNT"]; !ok {
-		t.Fatalf("expected error for field_PERSONAL_ACCOUNT, got: %#v", ve.FieldErrors)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("Validate() mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -32,8 +31,9 @@ func TestForm_Validate_SamplePassesWhenValueFixed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse() error: %v", err)
 	}
-	if err := f.Validate(); err != nil {
-		t.Fatalf("expected no validation error, got %T: %v", err, err)
+	got := asValidationError(f.Validate())
+	if diff := cmp.Diff((*ValidationError)(nil), got); diff != "" {
+		t.Fatalf("expected no validation error (-want +got):\n%s", diff)
 	}
 }
 
@@ -70,16 +70,14 @@ func TestForm_Validate_RequiredAndBoolean(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse() error: %v", err)
 	}
-	err = f.Validate()
-	if err == nil {
-		t.Fatalf("expected validation error, got nil")
+	got := asValidationError(f.Validate())
+	want := &ValidationError{
+		FieldErrors: map[string][]string{
+			"flag": {"must be a boolean"},
+		},
 	}
-	ve, ok := err.(*ValidationError)
-	if !ok {
-		t.Fatalf("expected *ValidationError, got %T", err)
-	}
-	if _, ok := ve.FieldErrors["flag"]; !ok {
-		t.Fatalf("expected error for flag, got %#v", ve.FieldErrors)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("Validate() mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -87,8 +85,7 @@ func TestForm_Validate_CornerCases(t *testing.T) {
 	tests := []struct {
 		name          string
 		xml           string
-		wantErrFields []string
-		wantErrSubAny []string
+		wantErr       *ValidationError
 	}{
 		{
 			name: "minLength_uses_runes",
@@ -118,8 +115,11 @@ func TestForm_Validate_CornerCases(t *testing.T) {
   </head>
   <body><input ref="s"><label>S</label></input></body>
 </html>`,
-			wantErrFields: []string{"s"},
-			wantErrSubAny: []string{"length must be >="},
+			wantErr: &ValidationError{
+				FieldErrors: map[string][]string{
+					"s": {"length must be >= 2"},
+				},
+			},
 		},
 		{
 			name: "enumeration_rejects_other_values",
@@ -150,8 +150,11 @@ func TestForm_Validate_CornerCases(t *testing.T) {
   </head>
   <body><input ref="v"><label>V</label></input></body>
 </html>`,
-			wantErrFields: []string{"v"},
-			wantErrSubAny: []string{"enumeration"},
+			wantErr: &ValidationError{
+				FieldErrors: map[string][]string{
+					"v": {"value is not in enumeration"},
+				},
+			},
 		},
 		{
 			name: "xsi_nil_not_nillable",
@@ -176,8 +179,11 @@ func TestForm_Validate_CornerCases(t *testing.T) {
   </head>
   <body><input ref="n"><label>N</label></input></body>
 </html>`,
-			wantErrFields: []string{"n"},
-			wantErrSubAny: []string{"not nillable"},
+			wantErr: &ValidationError{
+				FieldErrors: map[string][]string{
+					"n": {"value is nil but field is not nillable"},
+				},
+			},
 		},
 		{
 			name: "relevant_false_skips_validation",
@@ -207,7 +213,41 @@ func TestForm_Validate_CornerCases(t *testing.T) {
   </head>
   <body><input ref="x"><label>X</label></input></body>
 </html>`,
-			wantErrFields: nil,
+			wantErr: nil,
+		},
+		{
+			name: "required_empty_short_circuits_other_checks",
+			xml: `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test">
+        <simpleType name="T">
+          <restriction base="xsd:string">
+            <pattern value="^\\d+$"/>
+          </restriction>
+        </simpleType>
+        <element name="data">
+          <complexType>
+            <all>
+              <element name="x" nillable="false" type="T"/>
+            </all>
+          </complexType>
+        </element>
+      </schema>
+      <instance>
+        <data><x></x></data>
+      </instance>
+      <bind nodeset="x" relevant="true()" required="true" type="T"/>
+    </model>
+  </head>
+  <body><input ref="x"><label>X</label></input></body>
+</html>`,
+			wantErr: &ValidationError{
+				FieldErrors: map[string][]string{
+					"x": {"field is required"},
+				},
+			},
 		},
 	}
 
@@ -217,39 +257,9 @@ func TestForm_Validate_CornerCases(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse() error: %v", err)
 			}
-			err = f.Validate()
-
-			if len(tt.wantErrFields) == 0 {
-				if err != nil {
-					t.Fatalf("expected no error, got %T: %v", err, err)
-				}
-				return
-			}
-
-			if err == nil {
-				t.Fatalf("expected error, got nil")
-			}
-			ve, ok := err.(*ValidationError)
-			if !ok {
-				t.Fatalf("expected *ValidationError, got %T: %v", err, err)
-			}
-			for _, field := range tt.wantErrFields {
-				if _, ok := ve.FieldErrors[field]; !ok {
-					t.Fatalf("expected error for field %q, got %#v", field, ve.FieldErrors)
-				}
-			}
-			if len(tt.wantErrSubAny) > 0 {
-				flat := strings.Join(flattenFieldErrors(ve), " | ")
-				found := false
-				for _, sub := range tt.wantErrSubAny {
-					if strings.Contains(flat, sub) {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Fatalf("expected any of %v in errors, got %q", tt.wantErrSubAny, flat)
-				}
+			got := asValidationError(f.Validate())
+			if diff := cmp.Diff(tt.wantErr, got); diff != "" {
+				t.Fatalf("Validate() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -259,8 +269,7 @@ func TestValidate_DecimalBounds_AndInvalidSchemaPattern(t *testing.T) {
 	tests := []struct {
 		name    string
 		xml     string
-		field   string
-		wantSub string
+		wantErr *ValidationError
 	}{
 		{
 			name: "decimal_maxExclusive",
@@ -284,8 +293,14 @@ func TestValidate_DecimalBounds_AndInvalidSchemaPattern(t *testing.T) {
   </head>
   <body><input ref="d"><label>D</label></input></body>
 </html>`,
-			field:   "d",
-			wantSub: "must be <",
+			wantErr: func() *ValidationError {
+				max, _ := decimal.NewFromString("10.0")
+				return &ValidationError{
+					FieldErrors: map[string][]string{
+						"d": {"must be < " + max.String()},
+					},
+				}
+			}(),
 		},
 		{
 			name: "invalid_schema_pattern",
@@ -309,8 +324,11 @@ func TestValidate_DecimalBounds_AndInvalidSchemaPattern(t *testing.T) {
   </head>
   <body><input ref="p"><label>P</label></input></body>
 </html>`,
-			field:   "p",
-			wantSub: "invalid schema pattern",
+			wantErr: &ValidationError{
+				FieldErrors: map[string][]string{
+					"p": {"invalid schema pattern"},
+				},
+			},
 		},
 	}
 
@@ -320,17 +338,9 @@ func TestValidate_DecimalBounds_AndInvalidSchemaPattern(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse() error: %v", err)
 			}
-			err = f.Validate()
-			if err == nil {
-				t.Fatalf("expected validation error, got nil")
-			}
-			ve, ok := err.(*ValidationError)
-			if !ok {
-				t.Fatalf("expected *ValidationError, got %T", err)
-			}
-			msgs := strings.Join(ve.FieldErrors[tt.field], " | ")
-			if !strings.Contains(msgs, tt.wantSub) {
-				t.Fatalf("expected %q in field errors, got %q", tt.wantSub, msgs)
+			got := asValidationError(f.Validate())
+			if diff := cmp.Diff(tt.wantErr, got); diff != "" {
+				t.Fatalf("Validate() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -343,9 +353,10 @@ func TestValidationError_Error_IsReadable(t *testing.T) {
 			"a": {"err"},
 		},
 	}
-	s := ve.Error()
-	if !strings.Contains(s, "2 field(s)") || !strings.Contains(s, "a") {
-		t.Fatalf("unexpected Error() string: %q", s)
+	got := ve.Error()
+	want := "validation failed: 2 field(s) invalid (e.g. a)"
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("ValidationError.Error() mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -358,8 +369,10 @@ func TestSchemaDeclForInstanceField_FallsBackToTopLevelWhenNoRoot(t *testing.T) 
 		},
 		Instance: FormInstance{}, // Root.Local is empty
 	}
-	if decl := f.schemaDeclForInstanceField("x"); decl == nil || decl.Name != "x" {
-		t.Fatalf("expected top-level decl for x, got %#v", decl)
+	got := f.schemaDeclForInstanceField("x")
+	want := &FormSchemaElementDecl{Name: "x", TypeQName: "xsd:string"}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("schemaDeclForInstanceField mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -369,4 +382,16 @@ func flattenFieldErrors(ve *ValidationError) []string {
 		out = append(out, msgs...)
 	}
 	return out
+}
+
+func asValidationError(err error) *ValidationError {
+	if err == nil {
+		return nil
+	}
+	ve, ok := err.(*ValidationError)
+	if !ok {
+		// Keep it explicit so mismatches are obvious in diffs.
+		return &ValidationError{FieldErrors: map[string][]string{"__unexpected_error_type__": {err.Error()}}}
+	}
+	return ve
 }

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/shopspring/decimal"
 )
 
@@ -13,7 +14,7 @@ func TestForm_Fill_UpdatesOnlyProvidedFields(t *testing.T) {
 		t.Fatalf("Parse() error: %v", err)
 	}
 
-	beforeTx := f.Instance.Fields["transactionId"].Value
+	before := f.Instance.Clone()
 
 	newVal := "0123456789"
 	err = f.Fill([]FormElement{
@@ -26,11 +27,13 @@ func TestForm_Fill_UpdatesOnlyProvidedFields(t *testing.T) {
 		t.Fatalf("Fill() error: %v", err)
 	}
 
-	if got := strings.TrimSpace(f.Instance.Fields["field_PERSONAL_ACCOUNT"].Value); got != "0123456789" {
-		t.Fatalf("unexpected updated value: %q", got)
-	}
-	if got := f.Instance.Fields["transactionId"].Value; got != beforeTx {
-		t.Fatalf("expected transactionId unchanged; before=%q after=%q", beforeTx, got)
+	want := before.Clone()
+	v := want.Fields["field_PERSONAL_ACCOUNT"]
+	v.Value = newVal
+	want.Fields["field_PERSONAL_ACCOUNT"] = v
+
+	if diff := cmp.Diff(want, f.Instance); diff != "" {
+		t.Fatalf("Instance mismatch after Fill() (-want +got):\n%s", diff)
 	}
 }
 
@@ -41,7 +44,7 @@ func TestForm_ValidateAndFill_IsAtomic(t *testing.T) {
 		t.Fatalf("Parse() error: %v", err)
 	}
 
-	orig := f.Instance.Fields["field_PERSONAL_ACCOUNT"].Value
+	before := f.Instance.Clone()
 	bad := "1"
 	err = f.ValidateAndFill([]FormElement{
 		&TextInput{
@@ -52,9 +55,8 @@ func TestForm_ValidateAndFill_IsAtomic(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected validation error, got nil")
 	}
-	// Must not update on error.
-	if got := f.Instance.Fields["field_PERSONAL_ACCOUNT"].Value; got != orig {
-		t.Fatalf("expected instance unchanged; before=%q after=%q", orig, got)
+	if diff := cmp.Diff(before, f.Instance); diff != "" {
+		t.Fatalf("expected instance unchanged on failed ValidateAndFill() (-before +after):\n%s", diff)
 	}
 }
 
@@ -67,11 +69,18 @@ func TestValidateAndFill_SuccessPath(t *testing.T) {
 	}
 
 	newVal := "1111111111"
+	before := f.Instance.Clone()
 	if err := f.ValidateAndFill([]FormElement{&TextInput{Name: "field_PERSONAL_ACCOUNT", Value: &newVal}}); err != nil {
 		t.Fatalf("ValidateAndFill() error: %v", err)
 	}
-	if got := strings.TrimSpace(f.Instance.Fields["field_PERSONAL_ACCOUNT"].Value); got != "1111111111" {
-		t.Fatalf("unexpected instance value: %q", got)
+
+	want := before.Clone()
+	v := want.Fields["field_PERSONAL_ACCOUNT"]
+	v.Value = newVal
+	want.Fields["field_PERSONAL_ACCOUNT"] = v
+
+	if diff := cmp.Diff(want, f.Instance); diff != "" {
+		t.Fatalf("Instance mismatch after successful ValidateAndFill() (-want +got):\n%s", diff)
 	}
 }
 
@@ -112,14 +121,17 @@ func TestForm_Fill_ReadonlyAndTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Fill() error: %v", err)
 	}
-	if got := f.Instance.Fields["d"].Value; got != "10.50" {
-		t.Fatalf("unexpected decimal value: %q", got)
+
+	want := FormInstance{
+		Fields: map[string]FormInstanceField{
+			"ro": {Name: "ro", Value: "old"},
+			"d":  {Name: "d", Value: "10.50"},
+			"b":  {Name: "b", Value: "true"},
+			"s":  {Name: "s", Value: "x"},
+		},
 	}
-	if got := f.Instance.Fields["b"].Value; got != "true" {
-		t.Fatalf("unexpected boolean value: %q", got)
-	}
-	if got := f.Instance.Fields["s"].Value; got != "x" {
-		t.Fatalf("unexpected select value: %q", got)
+	if diff := cmp.Diff(want, f.Instance); diff != "" {
+		t.Fatalf("Instance mismatch after Fill types (-want +got):\n%s", diff)
 	}
 }
 
@@ -142,7 +154,130 @@ func TestFill_NilValuesClearFields(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Fill() error: %v", err)
 	}
-	if f.Instance.Fields["t"].Value != "" || f.Instance.Fields["d"].Value != "" || f.Instance.Fields["b"].Value != "" || f.Instance.Fields["s"].Value != "" {
-		t.Fatalf("expected cleared values, got: %#v", f.Instance.Fields)
+
+	want := FormInstance{
+		Fields: map[string]FormInstanceField{
+			"t": {Name: "t", Value: ""},
+			"d": {Name: "d", Value: ""},
+			"b": {Name: "b", Value: ""},
+			"s": {Name: "s", Value: ""},
+		},
+	}
+	if diff := cmp.Diff(want, f.Instance); diff != "" {
+		t.Fatalf("Instance mismatch after clearing (-want +got):\n%s", diff)
+	}
+}
+
+func TestForm_Fill_ComplexInput_RawValueWinsOverMap(t *testing.T) {
+	raw := "<a>1</a><sum>2.00</sum>"
+	f := &Form{
+		Instance: FormInstance{
+			Fields: map[string]FormInstanceField{
+				"obj": {Name: "obj", Value: "old"},
+			},
+		},
+		Binds: []*FormBind{
+			{Nodeset: "obj", Readonly: false, Relevant: true},
+		},
+	}
+	err := f.Fill([]FormElement{
+		&ComplexInput{
+			Name:     "obj",
+			RawValue: &raw,
+			Value: map[string]string{
+				"a": "ignored",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Fill() error: %v", err)
+	}
+	want := FormInstance{
+		Fields: map[string]FormInstanceField{
+			"obj": {Name: "obj", Value: raw},
+		},
+	}
+	if diff := cmp.Diff(want, f.Instance); diff != "" {
+		t.Fatalf("Instance mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestForm_Fill_ComplexInput_MapIsSerialized_OrderedAndEscaped(t *testing.T) {
+	ct := &FormSchemaComplexType{
+		Name: "C",
+		All: []FormSchemaElementDecl{
+			{Name: "a"},
+			{Name: "sum"},
+			{Name: "check"},
+		},
+	}
+	f := &Form{
+		Instance: FormInstance{Fields: map[string]FormInstanceField{}},
+		Binds:    []*FormBind{{Nodeset: "obj", Readonly: false, Relevant: true}},
+	}
+
+	err := f.Fill([]FormElement{
+		&ComplexInput{
+			Name:        "obj",
+			ComplexType: ct,
+			Value: map[string]string{
+				"a":     "x & y",
+				"sum":   "1.00",
+				"check": "true",
+				"extra": "<z/>",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Fill() error: %v", err)
+	}
+
+	want := FormInstance{
+		Fields: map[string]FormInstanceField{
+			"obj": {Name: "obj", Value: "<a>x &amp; y</a><sum>1.00</sum><check>true</check><extra><z/></extra>"},
+		},
+	}
+	if diff := cmp.Diff(want, f.Instance); diff != "" {
+		t.Fatalf("Instance mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestForm_Fill_CreatesFieldsMapWhenNil(t *testing.T) {
+	f := &Form{
+		Instance: FormInstance{}, // Fields is nil
+		Binds:    []*FormBind{{Nodeset: "t", Readonly: false, Relevant: true}},
+	}
+	v := "x"
+	if err := f.Fill([]FormElement{&TextInput{Name: "t", Value: &v}}); err != nil {
+		t.Fatalf("Fill() error: %v", err)
+	}
+	want := FormInstance{
+		Fields: map[string]FormInstanceField{
+			"t": {Name: "t", Value: "x"},
+		},
+	}
+	if diff := cmp.Diff(want, f.Instance); diff != "" {
+		t.Fatalf("Instance mismatch (-want +got):\n%s", diff)
+	}
+}
+
+type unknownFormElement struct{}
+
+func (*unknownFormElement) FormElement() {}
+
+func TestForm_Fill_UnknownElementIsIgnored(t *testing.T) {
+	f := &Form{
+		Instance: FormInstance{
+			Fields: map[string]FormInstanceField{
+				"t": {Name: "t", Value: "x"},
+			},
+		},
+	}
+	before := f.Instance.Clone()
+	if err := f.Fill([]FormElement{&unknownFormElement{}}); err != nil {
+		t.Fatalf("Fill() error: %v", err)
+	}
+	if diff := cmp.Diff(before, f.Instance); diff != "" {
+		t.Fatalf("expected instance unchanged when unknown element passed (-before +after):\n%s", diff)
 	}
 }
