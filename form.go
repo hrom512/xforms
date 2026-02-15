@@ -59,7 +59,7 @@ type FormBind struct {
 	Nodeset string
 
 	// TypeQName is either an xsd builtin type (xsd:string/decimal/boolean)
-	// or a schema type (e.g. a-3:PERSONAL_ACCOUNT_1_1). Prefix is preserved.
+	// or a schema type (e.g. demo:PERSONAL_ACCOUNT). Prefix is preserved.
 	TypeQName *string
 
 	ExtType *string
@@ -248,7 +248,7 @@ func (fi *FormInstance) UnmarshalXML(d *xml.Decoder, start xml.StartElement) err
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
-			// Root element of the instance (e.g. a-3:xmlData)
+			// Root element of the instance (e.g. demo:xmlData)
 			fi.Root = t.Name
 			if err := fi.decodeInstanceRoot(d, t); err != nil {
 				return err

@@ -21,13 +21,13 @@ func TestForm_Elements_Sample(t *testing.T) {
 			Label: "",
 			Elements: []FormElement{
 				&TextInput{
-					Name:     "a3_PERSONAL_ACCOUNT_1_1",
+					Name:     "field_PERSONAL_ACCOUNT",
 					Label:    "Personal account number:",
 					ExtType:  sp("PERSONAL_ACCOUNT"),
 					Required: true,
 					Readonly: false,
 					SimpleType: &FormSchemaSimpleType{
-						Name:          "PERSONAL_ACCOUNT_1_1",
+						Name:          "PERSONAL_ACCOUNT",
 						BaseTypeQName: "xsd:string",
 						Pattern:       sp("^\\d{10}$"),
 					},

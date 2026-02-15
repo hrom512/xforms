@@ -9,19 +9,19 @@ import (
 )
 
 const sampleXFormsXML = `<?xml version="1.0" encoding="UTF-8"?>
-<xhtml:html xmlns:a-3="http://www.a-3.ru/xforms/schema" xmlns:xforms="http://www.w3.org/2002/xforms" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchemainstance" xsi:schemaLocation="http://www.w3.org/2002/xforms http://www.w3.org/MarkUp/Forms/2002/XForms-Schema.xsd">
+<xhtml:html xmlns:demo="urn:demo-xforms" xmlns:xforms="http://www.w3.org/2002/xforms" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <xhtml:head>
     <xforms:model>
-      <xsd:schema targetNamespace="http://www.a-3.ru/xforms/schema">
-        <xsd:simpleType name="PERSONAL_ACCOUNT_1_1">
+      <xsd:schema targetNamespace="urn:demo-xforms">
+        <xsd:simpleType name="PERSONAL_ACCOUNT">
           <xsd:restriction base="xsd:string">
             <xsd:pattern value="^\d{10}$"/>
           </xsd:restriction>
         </xsd:simpleType>
-        <xsd:simpleType name="TERMINALID_2_1">
+        <xsd:simpleType name="TERMINALID">
           <xsd:restriction base="xsd:string"/>
         </xsd:simpleType>
-        <xsd:simpleType name="_CHECK_TEXT__3_1">
+        <xsd:simpleType name="CHECK_TEXT">
           <xsd:restriction base="xsd:string"/>
         </xsd:simpleType>
         <xsd:complexType name="SumCheck">
@@ -34,43 +34,43 @@ const sampleXFormsXML = `<?xml version="1.0" encoding="UTF-8"?>
           <xsd:complexType>
             <xsd:all>
               <xsd:element name="transactionId" nillable="false" type="xsd:string"/>
-              <xsd:element name="a3_PERSONAL_ACCOUNT_1_1" nillable="false" type="a-3:PERSONAL_ACCOUNT_1_1"/>
-              <xsd:element name="a3_TERMINALID_2_1" nillable="false" type="a-3:TERMINALID_2_1"/>
-              <xsd:element name="a3__CHECK_TEXT__3_1" nillable="true" type="a-3:_CHECK_TEXT__2_1"/>
+              <xsd:element name="field_PERSONAL_ACCOUNT" nillable="false" type="demo:PERSONAL_ACCOUNT"/>
+              <xsd:element name="field_TERMINALID" nillable="false" type="demo:TERMINALID"/>
+              <xsd:element name="field_CHECK_TEXT" nillable="true" type="demo:CHECK_TEXT"/>
             </xsd:all>
           </xsd:complexType>
         </xsd:element>
       </xsd:schema>
       <xforms:instance>
-        <a-3:xmlData>
+        <demo:xmlData>
           <transactionId>456803</transactionId>
-          <a3_PERSONAL_ACCOUNT_1_1>012345678</a3_PERSONAL_ACCOUNT_1_1>
-          <a3_TERMINALID_2_1>testTerminal01</a3_TERMINALID_2_1>
-          <a3__CHECK_TEXT__3_1/>
-        </a-3:xmlData>
+          <field_PERSONAL_ACCOUNT>012345678</field_PERSONAL_ACCOUNT>
+          <field_TERMINALID>testTerminal01</field_TERMINALID>
+          <field_CHECK_TEXT/>
+        </demo:xmlData>
       </xforms:instance>
-      <xforms:bind exttype="PERSONAL_ACCOUNT" nodeset="a3_PERSONAL_ACCOUNT_1_1" readonly="false" relevant="true()" required="true" type="a-3:PERSONAL_ACCOUNT_1_1"/>
-      <xforms:bind exttype="PARAMETER" nodeset="a3_TERMINALID_2_1" readonly="false" relevant="false()" required="true" type="a-3:TERMINALID_2_1"/>
-      <xforms:bind exttype="CLIENT" nodeset="a3__CHECK_TEXT__3_1" readonly="true" relevant="false()" required="false" type="a-3:_CHECK_TEXT__3_1"/>
-      <xforms:submission action="http://localhost/" id="a-3.submission.back" method="get"/>
-      <xforms:submission action="http://localhost/" id="a-3.submission.next" method="get"/>
-      <xforms:submission action="http://localhost/" id="a-3.submission.pay" method="get"/>
-      <xforms:submission action="http://localhost/" id="a-3.submission.link" method="get"/>
+      <xforms:bind exttype="PERSONAL_ACCOUNT" nodeset="field_PERSONAL_ACCOUNT" readonly="false" relevant="true()" required="true" type="demo:PERSONAL_ACCOUNT"/>
+      <xforms:bind exttype="PARAMETER" nodeset="field_TERMINALID" readonly="false" relevant="false()" required="true" type="demo:TERMINALID"/>
+      <xforms:bind exttype="CLIENT" nodeset="field_CHECK_TEXT" readonly="true" relevant="false()" required="false" type="demo:CHECK_TEXT"/>
+      <xforms:submission action="http://localhost/" id="submission.back" method="get"/>
+      <xforms:submission action="http://localhost/" id="submission.next" method="get"/>
+      <xforms:submission action="http://localhost/" id="submission.pay" method="get"/>
+      <xforms:submission action="http://localhost/" id="submission.link" method="get"/>
     </xforms:model>
   </xhtml:head>
   <xhtml:body>
     <xforms:group id="10">
       <xforms:label/>
-      <xforms:input id="PERSONAL_ACCOUNT_1_1" incremental="true" ref="a3_PERSONAL_ACCOUNT_1_1">
+      <xforms:input id="PERSONAL_ACCOUNT" incremental="true" ref="field_PERSONAL_ACCOUNT">
         <xforms:label>Personal account number:</xforms:label>
         <xforms:alert>Incorrect personal account number format!</xforms:alert>
         <xforms:help>Example of completion: 1234567890</xforms:help>
       </xforms:input>
     </xforms:group>
-    <xforms:submit id="a-3.back" submission="a-3.submission.back">
+    <xforms:submit id="back" submission="submission.back">
       <xforms:label>Back</xforms:label>
     </xforms:submit>
-    <xforms:submit id="a-3.next" submission="a-3.submission.next">
+    <xforms:submit id="next" submission="submission.next">
       <xforms:label>Next</xforms:label>
     </xforms:submit>
   </xhtml:body>
@@ -88,19 +88,19 @@ func TestParse_SampleXForms(t *testing.T) {
 
 	want := &Form{
 		Schema: FormSchema{
-			TargetNamespace: "http://www.a-3.ru/xforms/schema",
+			TargetNamespace: "urn:demo-xforms",
 			SimpleTypes: map[string]*FormSchemaSimpleType{
-				"PERSONAL_ACCOUNT_1_1": {
-					Name:          "PERSONAL_ACCOUNT_1_1",
+				"PERSONAL_ACCOUNT": {
+					Name:          "PERSONAL_ACCOUNT",
 					BaseTypeQName: "xsd:string",
 					Pattern:       sp("^\\d{10}$"),
 				},
-				"TERMINALID_2_1": {
-					Name:          "TERMINALID_2_1",
+				"TERMINALID": {
+					Name:          "TERMINALID",
 					BaseTypeQName: "xsd:string",
 				},
-				"_CHECK_TEXT__3_1": {
-					Name:          "_CHECK_TEXT__3_1",
+				"CHECK_TEXT": {
+					Name:          "CHECK_TEXT",
 					BaseTypeQName: "xsd:string",
 				},
 			},
@@ -121,27 +121,27 @@ func TestParse_SampleXForms(t *testing.T) {
 						Name: "",
 						All: []FormSchemaElementDecl{
 							{Name: "transactionId", TypeQName: "xsd:string", Nillable: bp(false)},
-							{Name: "a3_PERSONAL_ACCOUNT_1_1", TypeQName: "a-3:PERSONAL_ACCOUNT_1_1", Nillable: bp(false)},
-							{Name: "a3_TERMINALID_2_1", TypeQName: "a-3:TERMINALID_2_1", Nillable: bp(false)},
-							{Name: "a3__CHECK_TEXT__3_1", TypeQName: "a-3:_CHECK_TEXT__2_1", Nillable: bp(true)},
+							{Name: "field_PERSONAL_ACCOUNT", TypeQName: "demo:PERSONAL_ACCOUNT", Nillable: bp(false)},
+							{Name: "field_TERMINALID", TypeQName: "demo:TERMINALID", Nillable: bp(false)},
+							{Name: "field_CHECK_TEXT", TypeQName: "demo:CHECK_TEXT", Nillable: bp(true)},
 						},
 					},
 				},
 			},
 		},
 		Instance: FormInstance{
-			Root: xml.Name{Space: "http://www.a-3.ru/xforms/schema", Local: "xmlData"},
+			Root: xml.Name{Space: "urn:demo-xforms", Local: "xmlData"},
 			Fields: map[string]FormInstanceField{
-				"transactionId":           {Name: "transactionId", Namespace: "", Value: "456803", IsNil: false},
-				"a3_PERSONAL_ACCOUNT_1_1": {Name: "a3_PERSONAL_ACCOUNT_1_1", Namespace: "", Value: "012345678", IsNil: false},
-				"a3_TERMINALID_2_1":       {Name: "a3_TERMINALID_2_1", Namespace: "", Value: "testTerminal01", IsNil: false},
-				"a3__CHECK_TEXT__3_1":     {Name: "a3__CHECK_TEXT__3_1", Namespace: "", Value: "", IsNil: false},
+				"transactionId":          {Name: "transactionId", Namespace: "", Value: "456803", IsNil: false},
+				"field_PERSONAL_ACCOUNT": {Name: "field_PERSONAL_ACCOUNT", Namespace: "", Value: "012345678", IsNil: false},
+				"field_TERMINALID":       {Name: "field_TERMINALID", Namespace: "", Value: "testTerminal01", IsNil: false},
+				"field_CHECK_TEXT":       {Name: "field_CHECK_TEXT", Namespace: "", Value: "", IsNil: false},
 			},
 		},
 		Binds: []*FormBind{
 			{
-				Nodeset:     "a3_PERSONAL_ACCOUNT_1_1",
-				TypeQName:   sp("a-3:PERSONAL_ACCOUNT_1_1"),
+				Nodeset:     "field_PERSONAL_ACCOUNT",
+				TypeQName:   sp("demo:PERSONAL_ACCOUNT"),
 				ExtType:     sp("PERSONAL_ACCOUNT"),
 				Required:    true,
 				Readonly:    false,
@@ -151,8 +151,8 @@ func TestParse_SampleXForms(t *testing.T) {
 				RawRelevant: "true()",
 			},
 			{
-				Nodeset:     "a3_TERMINALID_2_1",
-				TypeQName:   sp("a-3:TERMINALID_2_1"),
+				Nodeset:     "field_TERMINALID",
+				TypeQName:   sp("demo:TERMINALID"),
 				ExtType:     sp("PARAMETER"),
 				Required:    true,
 				Readonly:    false,
@@ -162,8 +162,8 @@ func TestParse_SampleXForms(t *testing.T) {
 				RawRelevant: "false()",
 			},
 			{
-				Nodeset:     "a3__CHECK_TEXT__3_1",
-				TypeQName:   sp("a-3:_CHECK_TEXT__3_1"),
+				Nodeset:     "field_CHECK_TEXT",
+				TypeQName:   sp("demo:CHECK_TEXT"),
 				ExtType:     sp("CLIENT"),
 				Required:    false,
 				Readonly:    true,
@@ -174,10 +174,10 @@ func TestParse_SampleXForms(t *testing.T) {
 			},
 		},
 		Submissions: []*FormSubmission{
-			{ID: "a-3.submission.back", Action: "http://localhost/", Method: "get"},
-			{ID: "a-3.submission.next", Action: "http://localhost/", Method: "get"},
-			{ID: "a-3.submission.pay", Action: "http://localhost/", Method: "get"},
-			{ID: "a-3.submission.link", Action: "http://localhost/", Method: "get"},
+			{ID: "submission.back", Action: "http://localhost/", Method: "get"},
+			{ID: "submission.next", Action: "http://localhost/", Method: "get"},
+			{ID: "submission.pay", Action: "http://localhost/", Method: "get"},
+			{ID: "submission.link", Action: "http://localhost/", Method: "get"},
 		},
 		Body: FormBody{
 			Elements: []FormBodyElement{
@@ -186,8 +186,8 @@ func TestParse_SampleXForms(t *testing.T) {
 					Label: "",
 					Elements: []FormBodyElement{
 						&FormBodyInput{
-							ID:          sp("PERSONAL_ACCOUNT_1_1"),
-							Ref:         "a3_PERSONAL_ACCOUNT_1_1",
+							ID:          sp("PERSONAL_ACCOUNT"),
+							Ref:         "field_PERSONAL_ACCOUNT",
 							Incremental: bp(true),
 							Label:       "Personal account number:",
 							Alert:       "Incorrect personal account number format!",

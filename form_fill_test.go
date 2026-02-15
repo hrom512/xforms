@@ -18,7 +18,7 @@ func TestForm_Fill_UpdatesOnlyProvidedFields(t *testing.T) {
 	newVal := "0123456789"
 	err = f.Fill([]FormElement{
 		&TextInput{
-			Name:  "a3_PERSONAL_ACCOUNT_1_1",
+			Name:  "field_PERSONAL_ACCOUNT",
 			Value: &newVal,
 		},
 	})
@@ -26,7 +26,7 @@ func TestForm_Fill_UpdatesOnlyProvidedFields(t *testing.T) {
 		t.Fatalf("Fill() error: %v", err)
 	}
 
-	if got := strings.TrimSpace(f.Instance.Fields["a3_PERSONAL_ACCOUNT_1_1"].Value); got != "0123456789" {
+	if got := strings.TrimSpace(f.Instance.Fields["field_PERSONAL_ACCOUNT"].Value); got != "0123456789" {
 		t.Fatalf("unexpected updated value: %q", got)
 	}
 	if got := f.Instance.Fields["transactionId"].Value; got != beforeTx {
@@ -41,11 +41,11 @@ func TestForm_ValidateAndFill_IsAtomic(t *testing.T) {
 		t.Fatalf("Parse() error: %v", err)
 	}
 
-	orig := f.Instance.Fields["a3_PERSONAL_ACCOUNT_1_1"].Value
+	orig := f.Instance.Fields["field_PERSONAL_ACCOUNT"].Value
 	bad := "1"
 	err = f.ValidateAndFill([]FormElement{
 		&TextInput{
-			Name:  "a3_PERSONAL_ACCOUNT_1_1",
+			Name:  "field_PERSONAL_ACCOUNT",
 			Value: &bad,
 		},
 	})
@@ -53,7 +53,7 @@ func TestForm_ValidateAndFill_IsAtomic(t *testing.T) {
 		t.Fatalf("expected validation error, got nil")
 	}
 	// Must not update on error.
-	if got := f.Instance.Fields["a3_PERSONAL_ACCOUNT_1_1"].Value; got != orig {
+	if got := f.Instance.Fields["field_PERSONAL_ACCOUNT"].Value; got != orig {
 		t.Fatalf("expected instance unchanged; before=%q after=%q", orig, got)
 	}
 }
@@ -67,10 +67,10 @@ func TestValidateAndFill_SuccessPath(t *testing.T) {
 	}
 
 	newVal := "1111111111"
-	if err := f.ValidateAndFill([]FormElement{&TextInput{Name: "a3_PERSONAL_ACCOUNT_1_1", Value: &newVal}}); err != nil {
+	if err := f.ValidateAndFill([]FormElement{&TextInput{Name: "field_PERSONAL_ACCOUNT", Value: &newVal}}); err != nil {
 		t.Fatalf("ValidateAndFill() error: %v", err)
 	}
-	if got := strings.TrimSpace(f.Instance.Fields["a3_PERSONAL_ACCOUNT_1_1"].Value); got != "1111111111" {
+	if got := strings.TrimSpace(f.Instance.Fields["field_PERSONAL_ACCOUNT"].Value); got != "1111111111" {
 		t.Fatalf("unexpected instance value: %q", got)
 	}
 }

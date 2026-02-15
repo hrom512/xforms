@@ -21,8 +21,8 @@ func TestForm_Validate_SampleDetectsPatternMismatch(t *testing.T) {
 	if len(ve.FieldErrors) == 0 {
 		t.Fatalf("expected at least one field error")
 	}
-	if _, ok := ve.FieldErrors["a3_PERSONAL_ACCOUNT_1_1"]; !ok {
-		t.Fatalf("expected error for a3_PERSONAL_ACCOUNT_1_1, got: %#v", ve.FieldErrors)
+	if _, ok := ve.FieldErrors["field_PERSONAL_ACCOUNT"]; !ok {
+		t.Fatalf("expected error for field_PERSONAL_ACCOUNT, got: %#v", ve.FieldErrors)
 	}
 }
 
