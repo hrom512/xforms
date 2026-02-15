@@ -32,10 +32,10 @@ func TestForm_Elements_Sample(t *testing.T) {
 						Pattern:       sp("^\\d{10}$"),
 					},
 					ComplexType: nil,
-					Alert: "Incorrect personal account number format!",
-					Help:  "Example of completion: 1234567890",
-					Hint:  "",
-					Value: sp("012345678"),
+					Alert:       "Incorrect personal account number format!",
+					Help:        "Example of completion: 1234567890",
+					Hint:        "",
+					Value:       sp("012345678"),
 				},
 			},
 		},
@@ -359,4 +359,3 @@ func mustDecimalPtr(s string) *decimal.Decimal {
 	}
 	return &d
 }
-

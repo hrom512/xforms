@@ -115,4 +115,3 @@ func TestMarkerMethods_FormBodyElements(t *testing.T) {
 	(&FormBodySelect{}).formBodyElement()
 	(&FormBodyOutput{}).formBodyElement()
 }
-

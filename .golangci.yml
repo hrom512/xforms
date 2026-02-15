@@ -1,0 +1,23 @@
+run:
+  timeout: 3m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - unused
+    - ineffassign
+    - typecheck
+    - gofmt
+
+issues:
+  exclude-use-default: false
+
+linters-settings:
+  govet:
+    enable-all: false
+

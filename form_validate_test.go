@@ -370,4 +370,3 @@ func flattenFieldErrors(ve *ValidationError) []string {
 	}
 	return out
 }
-

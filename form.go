@@ -25,14 +25,14 @@ type FormSchema struct {
 }
 
 type FormSchemaSimpleType struct {
-	Name         string
+	Name          string
 	BaseTypeQName string // e.g. xsd:string, xsd:decimal, xsd:boolean
 
-	Pattern      *string
-	Enumeration  []string
-	MinLength    *int
-	MaxLength    *int
-	TotalDigits  *int
+	Pattern        *string
+	Enumeration    []string
+	MinLength      *int
+	MaxLength      *int
+	TotalDigits    *int
 	FractionDigits *int
 
 	// Numeric facets are kept as raw strings and interpreted according to base type.

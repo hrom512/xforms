@@ -99,9 +99,9 @@ func Parse(input io.Reader) (*Form, error) {
 // --- Internal XML model for Parse() ---
 
 type xformsHTMLXML struct {
-	XMLName xml.Name     `xml:"html"`
+	XMLName xml.Name      `xml:"html"`
 	Head    xformsHeadXML `xml:"head"`
-	Body    FormBody     `xml:"body"`
+	Body    FormBody      `xml:"body"`
 }
 
 type xformsHeadXML struct {
@@ -109,9 +109,9 @@ type xformsHeadXML struct {
 }
 
 type xformsModelXML struct {
-	Schema      FormSchema      `xml:"schema"`
-	Instance    FormInstance    `xml:"instance"`
-	Binds       []xformsBindXML `xml:"bind"`
+	Schema      FormSchema            `xml:"schema"`
+	Instance    FormInstance          `xml:"instance"`
+	Binds       []xformsBindXML       `xml:"bind"`
 	Submissions []xformsSubmissionXML `xml:"submission"`
 }
 
