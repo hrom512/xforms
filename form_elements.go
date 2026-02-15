@@ -312,7 +312,16 @@ func (f *Form) resolveSchemaType(b *FormBind, fieldName string) (*FormSchemaSimp
 	if b != nil && b.TypeQName != nil && strings.TrimSpace(*b.TypeQName) != "" {
 		return f.resolveSchemaTypeQName(*b.TypeQName)
 	}
-	// Fallback to schema element declaration by field name.
+	// Fallback to schema element declaration within the instance root element.
+	if decl := f.schemaDeclForInstanceField(fieldName); decl != nil {
+		if decl.ComplexType != nil {
+			return nil, decl.ComplexType
+		}
+		if strings.TrimSpace(decl.TypeQName) != "" {
+			return f.resolveSchemaTypeQName(decl.TypeQName)
+		}
+	}
+	// Fallback to top-level schema element declaration by field name.
 	if f.Schema.Elements != nil {
 		if ed, ok := f.Schema.Elements[fieldName]; ok && ed != nil {
 			if ed.ComplexType != nil {

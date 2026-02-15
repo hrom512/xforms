@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/shopspring/decimal"
 )
 
 func TestForm_Elements_Sample(t *testing.T) {
@@ -44,5 +45,318 @@ func TestForm_Elements_Sample(t *testing.T) {
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("Elements() mismatch (-want +got):\n%s", diff)
 	}
+}
+
+func TestForm_Elements_SelectAndOutput_AndSkipUnsupported(t *testing.T) {
+	const xml = `<?xml version="1.0"?>
+<html xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <head>
+    <model>
+      <schema targetNamespace="urn:test">
+        <element name="data">
+          <complexType>
+            <all>
+              <element name="choice" nillable="false" type="xsd:string"/>
+              <element name="msg" nillable="false" type="xsd:string"/>
+            </all>
+          </complexType>
+        </element>
+      </schema>
+      <instance>
+        <data>
+          <choice>b</choice>
+          <msg>Hello</msg>
+        </data>
+      </instance>
+      <bind nodeset="choice" relevant="true()" readonly="false" required="true" type="xsd:string"/>
+      <bind nodeset="msg" relevant="true()" readonly="true" required="false" type="xsd:string"/>
+    </model>
+  </head>
+  <body>
+    <input id="no-ref">
+      <label>Ignored</label>
+    </input>
+    <select1 id="choice" ref="choice">
+      <label>Pick</label>
+      <item><label>A</label><value>a</value></item>
+      <item><label>B</label><value>b</value></item>
+    </select1>
+    <output id="m" ref="msg">
+      <label>Static label ignored by ref</label>
+    </output>
+    <submit id="unsupported"><label>Skip</label></submit>
+  </body>
+</html>`
+
+	f, err := Parse(strings.NewReader(xml))
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+
+	want := []FormElement{
+		&SelectInput{
+			Name:        "choice",
+			Label:       "Pick",
+			ExtType:     nil,
+			Required:    true,
+			Readonly:    false,
+			SimpleType:  &FormSchemaSimpleType{Name: "string", BaseTypeQName: "xsd:string"},
+			ComplexType: nil,
+			Options: []SelectOption{
+				{Label: "A", Value: "a"},
+				{Label: "B", Value: "b"},
+			},
+			Value: &SelectOption{Label: "B", Value: "b"},
+		},
+		&TextMessage{
+			Message: "Hello",
+			ID:      strPtr("m"),
+		},
+	}
+
+	got := f.Elements()
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("Elements() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestForm_Elements_ResolveSchemaType_FallbackToSchemaDecl(t *testing.T) {
+	const xml = `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test">
+        <element name="data">
+          <complexType>
+            <all>
+              <element name="flag" nillable="false" type="xsd:boolean"/>
+            </all>
+          </complexType>
+        </element>
+      </schema>
+      <instance>
+        <data><flag>true</flag></data>
+      </instance>
+      <bind nodeset="flag" relevant="true()" required="true" readonly="false"/>
+    </model>
+  </head>
+  <body>
+    <input ref="flag"><label>Flag</label></input>
+  </body>
+</html>`
+
+	f, err := Parse(strings.NewReader(xml))
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+
+	got := f.Elements()
+	want := []FormElement{
+		&CheckboxInput{
+			Name:        "flag",
+			Label:       "Flag",
+			Required:    true,
+			Readonly:    false,
+			SimpleType:  &FormSchemaSimpleType{Name: "boolean", BaseTypeQName: "xsd:boolean"},
+			ComplexType: nil,
+			Value:       boolPtr(true),
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("Elements() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestElements_UsesSchemaDeclTypeWhenBindTypeMissing(t *testing.T) {
+	// Bind has no type; schema element decl provides xsd:decimal => should produce DecimalInput.
+	const xml = `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test">
+        <element name="data">
+          <complexType>
+            <all>
+              <element name="amt" nillable="false" type="xsd:decimal"/>
+            </all>
+          </complexType>
+        </element>
+      </schema>
+      <instance><data><amt>1.25</amt></data></instance>
+      <bind nodeset="amt" relevant="true()" required="true"/>
+    </model>
+  </head>
+  <body><input ref="amt"><label>Amt</label></input></body>
+</html>`
+
+	f, err := Parse(strings.NewReader(xml))
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+
+	want := []FormElement{
+		&DecimalInput{
+			Name:        "amt",
+			Label:       "Amt",
+			ExtType:     nil,
+			Required:    true,
+			Readonly:    false,
+			SimpleType:  &FormSchemaSimpleType{Name: "decimal", BaseTypeQName: "xsd:decimal"},
+			ComplexType: nil,
+			Value:       mustDecimalPtr("1.25"),
+		},
+	}
+	got := f.Elements()
+
+	decimalPtrComparer := cmp.Comparer(func(a, b *decimal.Decimal) bool {
+		if a == nil || b == nil {
+			return a == b
+		}
+		return a.String() == b.String()
+	})
+	if diff := cmp.Diff(want, got, decimalPtrComparer); diff != "" {
+		t.Fatalf("Elements() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestElements_BindTypeQNameOverridesSchemaDecl(t *testing.T) {
+	// Schema declares x as string, but bind forces xsd:boolean.
+	const xml = `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test">
+        <element name="data">
+          <complexType>
+            <all>
+              <element name="x" nillable="false" type="xsd:string"/>
+            </all>
+          </complexType>
+        </element>
+      </schema>
+      <instance><data><x>true</x></data></instance>
+      <bind nodeset="x" relevant="true()" required="true" type="xsd:boolean"/>
+    </model>
+  </head>
+  <body><input ref="x"><label>X</label></input></body>
+</html>`
+
+	f, err := Parse(strings.NewReader(xml))
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	got := f.Elements()
+	if len(got) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(got))
+	}
+	if _, ok := got[0].(*CheckboxInput); !ok {
+		t.Fatalf("expected CheckboxInput due to bind type override, got %T", got[0])
+	}
+}
+
+func TestElements_TopLevelSchemaElementDeclFallback_AndMissingInstanceValue(t *testing.T) {
+	// schema defines a top-level element 'x' (not under instance root),
+	// bind has no type => resolveSchemaType should fall back to Schema.Elements["x"].
+	// instance does not contain x => Value must be nil.
+	const xml = `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test">
+        <element name="x" nillable="false" type="xsd:string"/>
+      </schema>
+      <instance><data></data></instance>
+      <bind nodeset="x" relevant="true()" required="false"/>
+    </model>
+  </head>
+  <body><input ref="x"><label>X</label></input></body>
+</html>`
+
+	f, err := Parse(strings.NewReader(xml))
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	got := f.Elements()
+	want := []FormElement{
+		&TextInput{
+			Name:        "x",
+			Label:       "X",
+			Required:    false,
+			Readonly:    false,
+			SimpleType:  &FormSchemaSimpleType{Name: "string", BaseTypeQName: "xsd:string"},
+			ComplexType: nil,
+			Value:       nil,
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("Elements() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestElements_ComplexTypeBindType_ProducesTextInputWithComplexType(t *testing.T) {
+	const xml = `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test">
+        <complexType name="C">
+          <all>
+            <element name="a" type="xsd:string"/>
+          </all>
+        </complexType>
+        <element name="data">
+          <complexType>
+            <all>
+              <element name="obj" nillable="false" type="C"/>
+            </all>
+          </complexType>
+        </element>
+      </schema>
+      <instance><data><obj/></data></instance>
+      <bind nodeset="obj" relevant="true()" required="true" type="C"/>
+    </model>
+  </head>
+  <body><input ref="obj"><label>Obj</label></input></body>
+</html>`
+
+	f, err := Parse(strings.NewReader(xml))
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	got := f.Elements()
+	if len(got) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(got))
+	}
+	ti, ok := got[0].(*TextInput)
+	if !ok {
+		t.Fatalf("expected TextInput for complex type, got %T", got[0])
+	}
+	if ti.ComplexType == nil || ti.ComplexType.Name != "C" {
+		t.Fatalf("expected ComplexType C, got %#v", ti.ComplexType)
+	}
+}
+
+func TestMarkerMethods_FormElements(t *testing.T) {
+	// These are marker methods; calling them increases coverage without changing behavior.
+	(&TextInput{}).FormElement()
+	(&DecimalInput{}).FormElement()
+	(&CheckboxInput{}).FormElement()
+	(&SelectInput{}).FormElement()
+	(&TextMessage{}).FormElement()
+	(&FieldGroup{}).FormElement()
+}
+
+// helpers
+
+func strPtr(s string) *string { return &s }
+
+func boolPtr(b bool) *bool { return &b }
+
+func mustDecimalPtr(s string) *decimal.Decimal {
+	d, err := decimal.NewFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return &d
 }
 

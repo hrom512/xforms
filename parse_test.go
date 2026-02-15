@@ -204,3 +204,69 @@ func TestParse_SampleXForms(t *testing.T) {
 		t.Fatalf("Parse() mismatch (-want +got):\n%s", diff)
 	}
 }
+
+func TestParse_Errors(t *testing.T) {
+	tests := []struct {
+		name       string
+		xml        string
+		wantErrSub string
+	}{
+		{
+			name: "bind_missing_nodeset",
+			xml: `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test"></schema>
+      <instance><data><x>1</x></data></instance>
+      <bind required="true"/>
+    </model>
+  </head>
+  <body></body>
+</html>`,
+			wantErrSub: "missing nodeset",
+		},
+		{
+			name: "bind_unsupported_bool_expr",
+			xml: `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test"></schema>
+      <instance><data><x>1</x></data></instance>
+      <bind nodeset="x" relevant="1=1"/>
+    </model>
+  </head>
+  <body></body>
+</html>`,
+			wantErrSub: "unsupported boolean expression",
+		},
+		{
+			name: "submission_missing_id",
+			xml: `<?xml version="1.0"?>
+<html>
+  <head>
+    <model>
+      <schema targetNamespace="urn:test"></schema>
+      <instance><data><x>1</x></data></instance>
+      <submission action="http://localhost/" method="get"/>
+    </model>
+  </head>
+  <body></body>
+</html>`,
+			wantErrSub: "submission missing id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse(strings.NewReader(tt.xml))
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tt.wantErrSub) {
+				t.Fatalf("expected error to contain %q, got %q", tt.wantErrSub, err.Error())
+			}
+		})
+	}
+}
