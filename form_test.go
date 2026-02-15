@@ -111,12 +111,12 @@ func TestSchemaSimpleTypeFacets_AreParsed(t *testing.T) {
 			Enumeration:   []string{"a", "b"},
 		},
 		"D": {
-			Name:          "D",
-			BaseTypeQName: "xsd:decimal",
-			TotalDigits:   ip(4),
+			Name:           "D",
+			BaseTypeQName:  "xsd:decimal",
+			TotalDigits:    ip(4),
 			FractionDigits: ip(2),
-			MinInclusive:  sp("0.01"),
-			MaxInclusive:  sp("99.99"),
+			MinInclusive:   sp("0.01"),
+			MaxInclusive:   sp("99.99"),
 		},
 	}
 	got := map[string]*FormSchemaSimpleType{

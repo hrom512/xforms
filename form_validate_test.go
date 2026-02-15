@@ -83,9 +83,9 @@ func TestForm_Validate_RequiredAndBoolean(t *testing.T) {
 
 func TestForm_Validate_CornerCases(t *testing.T) {
 	tests := []struct {
-		name          string
-		xml           string
-		wantErr       *ValidationError
+		name    string
+		xml     string
+		wantErr *ValidationError
 	}{
 		{
 			name: "minLength_uses_runes",
@@ -374,14 +374,6 @@ func TestSchemaDeclForInstanceField_FallsBackToTopLevelWhenNoRoot(t *testing.T) 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("schemaDeclForInstanceField mismatch (-want +got):\n%s", diff)
 	}
-}
-
-func flattenFieldErrors(ve *ValidationError) []string {
-	var out []string
-	for _, msgs := range ve.FieldErrors {
-		out = append(out, msgs...)
-	}
-	return out
 }
 
 func asValidationError(err error) *ValidationError {
