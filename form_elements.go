@@ -268,7 +268,7 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 			ComplexType: complexType,
 		}
 		for _, it := range t.Items {
-			si.Options = append(si.Options, SelectOption{Label: it.Label, Value: it.Value})
+			si.Options = append(si.Options, SelectOption(it))
 		}
 		if v, ok := f.instanceFieldValue(name); ok {
 			txt := strings.TrimSpace(v)
