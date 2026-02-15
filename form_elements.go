@@ -21,9 +21,7 @@ type TextInput struct {
 	Required bool
 	Readonly bool
 
-	// One of SimpleType or ComplexType is filled
-	SimpleType  *FormSchemaSimpleType
-	ComplexType *FormSchemaComplexType
+	SimpleType *FormSchemaSimpleType
 
 	Alert string
 	Help  string
@@ -43,9 +41,7 @@ type DecimalInput struct {
 	Required bool
 	Readonly bool
 
-	// One of SimpleType or ComplexType is filled
-	SimpleType  *FormSchemaSimpleType
-	ComplexType *FormSchemaComplexType
+	SimpleType *FormSchemaSimpleType
 
 	Alert string
 	Help  string
@@ -65,9 +61,7 @@ type CheckboxInput struct {
 	Required bool
 	Readonly bool
 
-	// One of SimpleType or ComplexType is filled
-	SimpleType  *FormSchemaSimpleType
-	ComplexType *FormSchemaComplexType
+	SimpleType *FormSchemaSimpleType
 
 	Value *bool
 }
@@ -83,9 +77,7 @@ type SelectInput struct {
 	Required bool
 	Readonly bool
 
-	// One of SimpleType or ComplexType is filled
-	SimpleType  *FormSchemaSimpleType
-	ComplexType *FormSchemaComplexType
+	SimpleType *FormSchemaSimpleType
 
 	Options []SelectOption
 
@@ -98,6 +90,28 @@ type SelectOption struct {
 }
 
 func (*SelectInput) FormElement() {}
+
+// ComplexInput represents an input bound to an XSD complexType.
+// Value contains the instance field content (inner XML) as a string.
+type ComplexInput struct {
+	Name  string
+	Label string
+
+	ExtType *string
+
+	Required bool
+	Readonly bool
+
+	ComplexType *FormSchemaComplexType
+
+	Alert string
+	Help  string
+	Hint  string
+
+	Value *string
+}
+
+func (*ComplexInput) FormElement() {}
 
 type TextMessage struct {
 	Message string
@@ -172,18 +186,39 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 		}
 		simpleType, complexType := f.resolveSchemaType(b, name)
 
+		// Complex type input: keep instance value as inner XML.
+		if simpleType == nil && complexType != nil {
+			ci := &ComplexInput{
+				Name:        name,
+				Label:       t.Label,
+				ExtType:     extType,
+				Required:    required,
+				Readonly:    readonly,
+				ComplexType: complexType,
+				Alert:       t.Alert,
+				Help:        t.Help,
+				Hint:        t.Hint,
+			}
+			if v, ok := f.instanceFieldValue(name); ok {
+				txt := strings.TrimSpace(v)
+				if txt != "" {
+					ci.Value = &txt
+				}
+			}
+			return ci
+		}
+
 		// Choose element type from base simple type.
 		if st := simpleType; st != nil {
 			switch qnameLocal(st.BaseTypeQName) {
 			case "boolean":
 				ci := &CheckboxInput{
-					Name:        name,
-					Label:       t.Label,
-					ExtType:     extType,
-					Required:    required,
-					Readonly:    readonly,
-					SimpleType:  simpleType,
-					ComplexType: complexType,
+					Name:       name,
+					Label:      t.Label,
+					ExtType:    extType,
+					Required:   required,
+					Readonly:   readonly,
+					SimpleType: simpleType,
 				}
 				if v, ok := f.instanceFieldValue(name); ok {
 					txt := strings.TrimSpace(v)
@@ -196,16 +231,15 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 				return ci
 			case "decimal":
 				di := &DecimalInput{
-					Name:        name,
-					Label:       t.Label,
-					ExtType:     extType,
-					Required:    required,
-					Readonly:    readonly,
-					SimpleType:  simpleType,
-					ComplexType: complexType,
-					Alert:       t.Alert,
-					Help:        t.Help,
-					Hint:        t.Hint,
+					Name:       name,
+					Label:      t.Label,
+					ExtType:    extType,
+					Required:   required,
+					Readonly:   readonly,
+					SimpleType: simpleType,
+					Alert:      t.Alert,
+					Help:       t.Help,
+					Hint:       t.Hint,
 				}
 				if v, ok := f.instanceFieldValue(name); ok {
 					txt := strings.TrimSpace(v)
@@ -220,16 +254,15 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 		}
 
 		ti := &TextInput{
-			Name:        name,
-			Label:       t.Label,
-			ExtType:     extType,
-			Required:    required,
-			Readonly:    readonly,
-			SimpleType:  simpleType,
-			ComplexType: complexType,
-			Alert:       t.Alert,
-			Help:        t.Help,
-			Hint:        t.Hint,
+			Name:       name,
+			Label:      t.Label,
+			ExtType:    extType,
+			Required:   required,
+			Readonly:   readonly,
+			SimpleType: simpleType,
+			Alert:      t.Alert,
+			Help:       t.Help,
+			Hint:       t.Hint,
 		}
 		if v, ok := f.instanceFieldValue(name); ok {
 			txt := strings.TrimSpace(v)
@@ -256,16 +289,15 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 			required = b.Required
 			readonly = b.Readonly
 		}
-		simpleType, complexType := f.resolveSchemaType(b, name)
+		simpleType, _ := f.resolveSchemaType(b, name)
 
 		si := &SelectInput{
-			Name:        name,
-			Label:       t.Label,
-			ExtType:     extType,
-			Required:    required,
-			Readonly:    readonly,
-			SimpleType:  simpleType,
-			ComplexType: complexType,
+			Name:       name,
+			Label:      t.Label,
+			ExtType:    extType,
+			Required:   required,
+			Readonly:   readonly,
+			SimpleType: simpleType,
 		}
 		for _, it := range t.Items {
 			si.Options = append(si.Options, SelectOption(it))

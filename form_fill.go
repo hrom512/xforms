@@ -116,6 +116,20 @@ func (f *Form) collectFillUpdates(fieldValues []FormElement) (map[string]string,
 				updates[name] = v.Value.Value
 			}
 
+		case *ComplexInput:
+			name := v.Name
+			if name == "" {
+				continue
+			}
+			if b := bindByField[name]; b != nil && b.Readonly {
+				return nil, fmt.Errorf("field %q is readonly", name)
+			}
+			if v.Value == nil {
+				updates[name] = ""
+			} else {
+				updates[name] = *v.Value
+			}
+
 		case *FieldGroup, *TextMessage:
 			// ignore
 		default:

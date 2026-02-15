@@ -31,11 +31,10 @@ func TestForm_Elements_Sample(t *testing.T) {
 						BaseTypeQName: "xsd:string",
 						Pattern:       sp("^\\d{10}$"),
 					},
-					ComplexType: nil,
-					Alert:       "Incorrect personal account number format!",
-					Help:        "Example of completion: 1234567890",
-					Hint:        "",
-					Value:       sp("012345678"),
+					Alert: "Incorrect personal account number format!",
+					Help:  "Example of completion: 1234567890",
+					Hint:  "",
+					Value: sp("012345678"),
 				},
 			},
 		},
@@ -95,13 +94,12 @@ func TestForm_Elements_SelectAndOutput_AndSkipUnsupported(t *testing.T) {
 
 	want := []FormElement{
 		&SelectInput{
-			Name:        "choice",
-			Label:       "Pick",
-			ExtType:     nil,
-			Required:    true,
-			Readonly:    false,
-			SimpleType:  &FormSchemaSimpleType{Name: "string", BaseTypeQName: "xsd:string"},
-			ComplexType: nil,
+			Name:       "choice",
+			Label:      "Pick",
+			ExtType:    nil,
+			Required:   true,
+			Readonly:   false,
+			SimpleType: &FormSchemaSimpleType{Name: "string", BaseTypeQName: "xsd:string"},
 			Options: []SelectOption{
 				{Label: "A", Value: "a"},
 				{Label: "B", Value: "b"},
@@ -153,13 +151,12 @@ func TestForm_Elements_ResolveSchemaType_FallbackToSchemaDecl(t *testing.T) {
 	got := f.Elements()
 	want := []FormElement{
 		&CheckboxInput{
-			Name:        "flag",
-			Label:       "Flag",
-			Required:    true,
-			Readonly:    false,
-			SimpleType:  &FormSchemaSimpleType{Name: "boolean", BaseTypeQName: "xsd:boolean"},
-			ComplexType: nil,
-			Value:       boolPtr(true),
+			Name:       "flag",
+			Label:      "Flag",
+			Required:   true,
+			Readonly:   false,
+			SimpleType: &FormSchemaSimpleType{Name: "boolean", BaseTypeQName: "xsd:boolean"},
+			Value:      boolPtr(true),
 		},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -196,14 +193,13 @@ func TestElements_UsesSchemaDeclTypeWhenBindTypeMissing(t *testing.T) {
 
 	want := []FormElement{
 		&DecimalInput{
-			Name:        "amt",
-			Label:       "Amt",
-			ExtType:     nil,
-			Required:    true,
-			Readonly:    false,
-			SimpleType:  &FormSchemaSimpleType{Name: "decimal", BaseTypeQName: "xsd:decimal"},
-			ComplexType: nil,
-			Value:       mustDecimalPtr("1.25"),
+			Name:       "amt",
+			Label:      "Amt",
+			ExtType:    nil,
+			Required:   true,
+			Readonly:   false,
+			SimpleType: &FormSchemaSimpleType{Name: "decimal", BaseTypeQName: "xsd:decimal"},
+			Value:      mustDecimalPtr("1.25"),
 		},
 	}
 	got := f.Elements()
@@ -245,12 +241,22 @@ func TestElements_BindTypeQNameOverridesSchemaDecl(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse() error: %v", err)
 	}
-	got := f.Elements()
-	if len(got) != 1 {
-		t.Fatalf("expected 1 element, got %d", len(got))
+
+	want := []FormElement{
+		&CheckboxInput{
+			Name:       "x",
+			Label:      "X",
+			ExtType:    nil,
+			Required:   true,
+			Readonly:   false,
+			SimpleType: &FormSchemaSimpleType{Name: "boolean", BaseTypeQName: "xsd:boolean"},
+			Value:      boolPtr(true),
+		},
 	}
-	if _, ok := got[0].(*CheckboxInput); !ok {
-		t.Fatalf("expected CheckboxInput due to bind type override, got %T", got[0])
+
+	got := f.Elements()
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("Elements() mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -279,13 +285,12 @@ func TestElements_TopLevelSchemaElementDeclFallback_AndMissingInstanceValue(t *t
 	got := f.Elements()
 	want := []FormElement{
 		&TextInput{
-			Name:        "x",
-			Label:       "X",
-			Required:    false,
-			Readonly:    false,
-			SimpleType:  &FormSchemaSimpleType{Name: "string", BaseTypeQName: "xsd:string"},
-			ComplexType: nil,
-			Value:       nil,
+			Name:       "x",
+			Label:      "X",
+			Required:   false,
+			Readonly:   false,
+			SimpleType: &FormSchemaSimpleType{Name: "string", BaseTypeQName: "xsd:string"},
+			Value:      nil,
 		},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -293,7 +298,7 @@ func TestElements_TopLevelSchemaElementDeclFallback_AndMissingInstanceValue(t *t
 	}
 }
 
-func TestElements_ComplexTypeBindType_ProducesTextInputWithComplexType(t *testing.T) {
+func TestElements_ComplexTypeBindType_ProducesComplexInputWithComplexType(t *testing.T) {
 	const xml = `<?xml version="1.0"?>
 <html>
   <head>
@@ -312,7 +317,13 @@ func TestElements_ComplexTypeBindType_ProducesTextInputWithComplexType(t *testin
           </complexType>
         </element>
       </schema>
-      <instance><data><obj/></data></instance>
+      <instance>
+        <data>
+          <obj>
+            <a>some value</a>
+          </obj>
+        </data>
+      </instance>
       <bind nodeset="obj" relevant="true()" required="true" type="C"/>
     </model>
   </head>
@@ -323,16 +334,32 @@ func TestElements_ComplexTypeBindType_ProducesTextInputWithComplexType(t *testin
 	if err != nil {
 		t.Fatalf("Parse() error: %v", err)
 	}
+
+	sp := func(s string) *string { return &s }
+
+	want := []FormElement{
+		&ComplexInput{
+			Name:     "obj",
+			Label:    "Obj",
+			ExtType:  nil,
+			Required: true,
+			Readonly: false,
+			ComplexType: &FormSchemaComplexType{
+				Name: "C",
+				All: []FormSchemaElementDecl{
+					{Name: "a", TypeQName: "xsd:string"},
+				},
+			},
+			Alert: "",
+			Help:  "",
+			Hint:  "",
+			Value: sp("<a>some value</a>"),
+		},
+	}
+
 	got := f.Elements()
-	if len(got) != 1 {
-		t.Fatalf("expected 1 element, got %d", len(got))
-	}
-	ti, ok := got[0].(*TextInput)
-	if !ok {
-		t.Fatalf("expected TextInput for complex type, got %T", got[0])
-	}
-	if ti.ComplexType == nil || ti.ComplexType.Name != "C" {
-		t.Fatalf("expected ComplexType C, got %#v", ti.ComplexType)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("Elements() mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -342,6 +369,7 @@ func TestMarkerMethods_FormElements(t *testing.T) {
 	(&DecimalInput{}).FormElement()
 	(&CheckboxInput{}).FormElement()
 	(&SelectInput{}).FormElement()
+	(&ComplexInput{}).FormElement()
 	(&TextMessage{}).FormElement()
 	(&FieldGroup{}).FormElement()
 }
