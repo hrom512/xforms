@@ -77,7 +77,15 @@ func (f *Form) collectFillUpdates(fieldValues []FormElement) (map[string]string,
 			if v.Value == nil {
 				updates[name] = ""
 			} else {
-				updates[name] = v.Value.String()
+				// Preserve the scale from the Decimal value.
+				// shopspring/decimal's String() trims trailing fractional zeros, while
+				// StringFixed(-Exponent()) keeps them (when Exponent() <= 0).
+				exp := v.Value.Exponent()
+				if exp <= 0 {
+					updates[name] = v.Value.StringFixed(-exp)
+				} else {
+					updates[name] = v.Value.String()
+				}
 			}
 
 		case *CheckboxInput:
