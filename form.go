@@ -94,10 +94,11 @@ type FormSchemaElementDecl struct {
 }
 
 type FormInstanceField struct {
-	Name      string
-	Namespace string
-	Value     string
-	IsNil     bool
+	Name  string
+	Value string
+
+	// IsNil stores the fact that the field has xsi:nil="true" set in the instance (i.e., the value is semantically "null" according to XSD), even if the text content is empty. This differs from a "simply empty string".
+	IsNil bool
 }
 
 var intertagWhitespace = regexp.MustCompile(`>\s+<`)
@@ -274,8 +275,7 @@ func (fi *FormInstance) decodeInstanceRoot(d *xml.Decoder, root xml.StartElement
 		case xml.StartElement:
 			// Direct child field under the instance root.
 			field := FormInstanceField{
-				Name:      t.Name.Local,
-				Namespace: t.Name.Space,
+				Name: t.Name.Local,
 			}
 			for _, a := range t.Attr {
 				if a.Name.Local == "nil" && (a.Name.Space == "http://www.w3.org/2001/XMLSchema-instance" || a.Name.Space == "") {
