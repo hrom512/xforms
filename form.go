@@ -113,8 +113,7 @@ type FormInstanceField struct {
 
 var intertagWhitespace = regexp.MustCompile(`>\s+<`)
 
-// Clone returns a deep copy of the instance fields map.
-func (fi FormInstance) Clone() FormInstance {
+func (fi FormInstance) clone() FormInstance {
 	out := FormInstance{
 		Root:   fi.Root,
 		Fields: map[string]FormInstanceField{},

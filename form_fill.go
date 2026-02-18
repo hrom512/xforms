@@ -27,7 +27,7 @@ func (f *Form) ValidateAndFill(fieldValues []FormElement) error {
 	}
 
 	tmp := *f
-	tmp.Instance = f.Instance.Clone()
+	tmp.Instance = f.Instance.clone()
 	tmp.applyInstanceUpdatesTo(&tmp.Instance, updates)
 
 	if err := tmp.Validate(); err != nil {

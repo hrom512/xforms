@@ -14,7 +14,7 @@ func TestForm_Fill_UpdatesOnlyProvidedFields(t *testing.T) {
 		t.Fatalf("Parse() error: %v", err)
 	}
 
-	before := f.Instance.Clone()
+	before := f.Instance.clone()
 
 	newVal := "0123456789"
 	err = f.Fill([]FormElement{
@@ -27,7 +27,7 @@ func TestForm_Fill_UpdatesOnlyProvidedFields(t *testing.T) {
 		t.Fatalf("Fill() error: %v", err)
 	}
 
-	want := before.Clone()
+	want := before.clone()
 	v := want.Fields["field_PERSONAL_ACCOUNT"]
 	v.Value = newVal
 	want.Fields["field_PERSONAL_ACCOUNT"] = v
@@ -44,7 +44,7 @@ func TestForm_ValidateAndFill_IsAtomic(t *testing.T) {
 		t.Fatalf("Parse() error: %v", err)
 	}
 
-	before := f.Instance.Clone()
+	before := f.Instance.clone()
 	bad := "1"
 	err = f.ValidateAndFill([]FormElement{
 		&TextInput{
@@ -69,12 +69,12 @@ func TestValidateAndFill_SuccessPath(t *testing.T) {
 	}
 
 	newVal := "1111111111"
-	before := f.Instance.Clone()
+	before := f.Instance.clone()
 	if err := f.ValidateAndFill([]FormElement{&TextInput{Name: "field_PERSONAL_ACCOUNT", Value: &newVal}}); err != nil {
 		t.Fatalf("ValidateAndFill() error: %v", err)
 	}
 
-	want := before.Clone()
+	want := before.clone()
 	v := want.Fields["field_PERSONAL_ACCOUNT"]
 	v.Value = newVal
 	want.Fields["field_PERSONAL_ACCOUNT"] = v
@@ -273,7 +273,7 @@ func TestForm_Fill_UnknownElementIsIgnored(t *testing.T) {
 			},
 		},
 	}
-	before := f.Instance.Clone()
+	before := f.Instance.clone()
 	if err := f.Fill([]FormElement{&unknownFormElement{}}); err != nil {
 		t.Fatalf("Fill() error: %v", err)
 	}

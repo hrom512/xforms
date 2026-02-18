@@ -333,11 +333,12 @@ func TestFullXFormsExample_Valid_EndToEnd(t *testing.T) {
 
 	// ValidateAndFill must be atomic.
 	badCode := "bad"
-	before := f.Instance.Clone()
+	before := instanceValuesSnapshot(f.Instance.Fields)
 	if err := f.ValidateAndFill([]xforms.FormElement{&xforms.TextInput{Name: "code", Value: &badCode}}); err == nil {
 		t.Fatalf("expected ValidateAndFill() to fail, got nil")
 	}
-	if diff := cmp.Diff(before, f.Instance); diff != "" {
+	after := instanceValuesSnapshot(f.Instance.Fields)
+	if diff := cmp.Diff(before, after); diff != "" {
 		t.Fatalf("expected instance unchanged on failed ValidateAndFill (-before +after):\n%s", diff)
 	}
 
