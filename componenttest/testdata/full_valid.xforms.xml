@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xhtml:html
+  xmlns:xhtml="http://www.w3.org/1999/xhtml"
+  xmlns:xforms="http://www.w3.org/2002/xforms"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <xhtml:head>
+    <xforms:model>
+      <xsd:schema targetNamespace="urn:full-demo">
+        <!-- Simple types / facets -->
+        <xsd:simpleType name="CODE">
+          <xsd:restriction base="xsd:string">
+            <xsd:pattern value="^[A-Z]{2}\d{4}$"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+
+        <xsd:simpleType name="USERNAME">
+          <xsd:restriction base="xsd:string">
+            <xsd:minLength value="2"/>
+            <xsd:maxLength value="4"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+
+        <xsd:simpleType name="PLAN">
+          <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="basic"/>
+            <xsd:enumeration value="pro"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+
+        <xsd:simpleType name="AMOUNT">
+          <xsd:restriction base="xsd:decimal">
+            <xsd:minInclusive value="0.01"/>
+            <xsd:maxExclusive value="10.0"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+
+        <!-- Complex type (linked into Elements as ComplexType) -->
+        <xsd:complexType name="ObjType">
+          <xsd:all>
+            <xsd:element name="a" type="xsd:string"/>
+            <xsd:element name="sum" type="xsd:decimal"/>
+            <xsd:element name="check" type="xsd:boolean"/>
+          </xsd:all>
+        </xsd:complexType>
+
+        <xsd:element name="data">
+          <xsd:complexType>
+            <xsd:all>
+              <xsd:element name="code" nillable="false" type="CODE"/>
+              <xsd:element name="username" nillable="false" type="USERNAME"/>
+              <xsd:element name="plan" nillable="false" type="PLAN"/>
+              <xsd:element name="amount" nillable="false" type="AMOUNT"/>
+              <xsd:element name="agree" nillable="false" type="xsd:boolean"/>
+              <xsd:element name="requiredEmpty" nillable="false" type="xsd:string"/>
+              <xsd:element name="noNil" nillable="false" type="xsd:string"/>
+              <xsd:element name="serverMessage" nillable="false" type="xsd:string"/>
+              <xsd:element name="hiddenBad" nillable="false" type="CODE"/>
+              <xsd:element name="obj" nillable="false" type="ObjType"/>
+            </xsd:all>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:schema>
+
+      <xforms:instance>
+        <data>
+          <code>AB1234</code>
+          <username>John</username>
+          <plan>basic</plan>
+          <amount>1.23</amount>
+          <agree>true</agree>
+          <requiredEmpty>x</requiredEmpty>
+          <noNil>ok</noNil>
+          <serverMessage>From server</serverMessage>
+          <hiddenBad>XX0000</hiddenBad>
+          <obj>
+            <a>demo</a>
+            <sum>1.00</sum>
+            <check>true</check>
+          </obj>
+        </data>
+      </xforms:instance>
+
+      <!-- binds: cover required/readonly/relevant/exttype/type -->
+      <xforms:bind exttype="CODE_FIELD" nodeset="code" required="true" relevant="true()" readonly="false" type="CODE"/>
+      <xforms:bind exttype="USER_FIELD" nodeset="username" required="true" relevant="true()" readonly="false" type="USERNAME"/>
+      <xforms:bind nodeset="plan" required="true" relevant="true()" readonly="false" type="PLAN"/>
+      <xforms:bind nodeset="amount" required="true" relevant="true()" readonly="false" type="AMOUNT"/>
+      <xforms:bind nodeset="agree" required="true" relevant="true()" readonly="false" type="xsd:boolean"/>
+      <xforms:bind nodeset="requiredEmpty" required="true" relevant="true()" readonly="false" type="xsd:string"/>
+      <xforms:bind nodeset="noNil" required="false" relevant="true()" readonly="false" type="xsd:string"/>
+      <xforms:bind nodeset="serverMessage" required="false" relevant="true()" readonly="true" type="xsd:string"/>
+      <xforms:bind nodeset="hiddenBad" required="true" relevant="false()" readonly="false" type="CODE"/>
+      <xforms:bind nodeset="obj" required="false" relevant="true()" readonly="false" type="ObjType"/>
+
+      <xforms:submission id="demo.submit" action="http://localhost/" method="post"/>
+    </xforms:model>
+  </xhtml:head>
+
+  <xhtml:body>
+    <xforms:group id="full">
+      <xforms:label>Full demo</xforms:label>
+
+      <xforms:input id="code" ref="code" incremental="true">
+        <xforms:label>Code</xforms:label>
+        <xforms:alert>Bad code</xforms:alert>
+        <xforms:help>Format: AA0000</xforms:help>
+        <xforms:hint>Enter a code</xforms:hint>
+      </xforms:input>
+
+      <xforms:input id="username" ref="username">
+        <xforms:label>Username</xforms:label>
+      </xforms:input>
+
+      <xforms:select1 id="plan" ref="plan">
+        <xforms:label>Plan</xforms:label>
+        <xforms:item><xforms:label>Basic</xforms:label><xforms:value>basic</xforms:value></xforms:item>
+        <xforms:item><xforms:label>Pro</xforms:label><xforms:value>pro</xforms:value></xforms:item>
+      </xforms:select1>
+
+      <xforms:input id="amount" ref="amount">
+        <xforms:label>Amount</xforms:label>
+      </xforms:input>
+
+      <xforms:input id="agree" ref="agree">
+        <xforms:label>Agree</xforms:label>
+      </xforms:input>
+
+      <xforms:input id="requiredEmpty" ref="requiredEmpty">
+        <xforms:label>Required (non-empty)</xforms:label>
+      </xforms:input>
+
+      <xforms:input id="noNil" ref="noNil">
+        <xforms:label>Not nillable</xforms:label>
+      </xforms:input>
+
+      <xforms:input id="serverMessage" ref="serverMessage">
+        <xforms:label>Server message</xforms:label>
+      </xforms:input>
+
+      <xforms:input id="hiddenBad" ref="hiddenBad">
+        <xforms:label>Hidden bad</xforms:label>
+      </xforms:input>
+
+      <xforms:input id="obj" ref="obj">
+        <xforms:label>Complex object</xforms:label>
+      </xforms:input>
+
+      <xforms:output id="serverMessageOut" ref="serverMessage">
+        <xforms:label>Message</xforms:label>
+      </xforms:output>
+
+      <xforms:output id="staticOut">
+        <xforms:label>Static output message</xforms:label>
+      </xforms:output>
+
+      <!-- Unsupported control: must be skipped by parser -->
+      <xforms:submit id="unsupportedSubmit" submission="demo.submit">
+        <xforms:label>Submit</xforms:label>
+      </xforms:submit>
+    </xforms:group>
+  </xhtml:body>
+</xhtml:html>
+
