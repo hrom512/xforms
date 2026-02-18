@@ -137,7 +137,21 @@ func (*FieldGroup) FormElement() {}
 
 // Elements parses form and returns a convenient list of form elements
 func (f *Form) Elements() []FormElement {
-	bindByField := map[string]*FormBind{}
+	bindByField := f.indexBindsByField()
+
+	var out []FormElement
+	for _, el := range f.Body.Elements {
+		if conv := f.convertBodyElement(el, bindByField); conv != nil {
+			out = append(out, conv)
+		}
+	}
+	return out
+}
+
+// indexBindsByField builds a nodeset/ref → bind lookup by direct field name.
+// First bind wins to keep behavior stable.
+func (f *Form) indexBindsByField() map[string]*FormBind {
+	out := map[string]*FormBind{}
 	for _, b := range f.Binds {
 		if b == nil {
 			continue
@@ -146,17 +160,10 @@ func (f *Form) Elements() []FormElement {
 		if field == "" {
 			continue
 		}
-		// First bind wins (stable behavior).
-		if _, ok := bindByField[field]; !ok {
-			bindByField[field] = b
+		if _, ok := out[field]; ok {
+			continue
 		}
-	}
-
-	var out []FormElement
-	for _, el := range f.Body.Elements {
-		if conv := f.convertBodyElement(el, bindByField); conv != nil {
-			out = append(out, conv)
-		}
+		out[field] = b
 	}
 	return out
 }

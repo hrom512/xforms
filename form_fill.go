@@ -39,19 +39,7 @@ func (f *Form) ValidateAndFill(fieldValues []FormElement) error {
 }
 
 func (f *Form) collectFillUpdates(fieldValues []FormElement) (map[string]string, error) {
-	bindByField := map[string]*FormBind{}
-	for _, b := range f.Binds {
-		if b == nil {
-			continue
-		}
-		field := fieldNameFromRef(b.Nodeset)
-		if field == "" {
-			continue
-		}
-		if _, ok := bindByField[field]; !ok {
-			bindByField[field] = b
-		}
-	}
+	bindByField := f.indexBindsByField()
 
 	updates := map[string]string{}
 	for _, el := range fieldValues {
