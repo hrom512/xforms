@@ -9,10 +9,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// ValidationError represents form validation failures grouped by field.
 type ValidationError struct {
 	FieldErrors map[string][]string
 }
 
+// Error returns a compact, deterministic description of validation failures.
 func (e *ValidationError) Error() string {
 	if e == nil || len(e.FieldErrors) == 0 {
 		return "validation failed"
@@ -83,11 +85,11 @@ func (f *Form) Validate() error {
 			baseQName = *b.TypeQName
 		}
 		switch qnameLocal(baseQName) {
-		case "boolean":
+		case xsdLocalBoolean:
 			if _, err := strconv.ParseBool(val); err != nil {
 				verr.add(field, "must be a boolean")
 			}
-		case "decimal":
+		case xsdLocalDecimal:
 			if _, err := decimal.NewFromString(val); err != nil {
 				verr.add(field, "must be a decimal number")
 			}
@@ -132,34 +134,34 @@ func (f *Form) Validate() error {
 		}
 
 		// Numeric bounds (decimal only, for now).
-		if qnameLocal(baseQName) == "decimal" {
+		if qnameLocal(baseQName) == xsdLocalDecimal {
 			cur, err := decimal.NewFromString(val)
 			if err == nil {
 				if st.MinInclusive != nil {
-					if min, err := decimal.NewFromString(strings.TrimSpace(*st.MinInclusive)); err == nil {
-						if cur.Cmp(min) < 0 {
-							verr.add(field, fmt.Sprintf("must be >= %s", min.String()))
+					if minVal, err := decimal.NewFromString(strings.TrimSpace(*st.MinInclusive)); err == nil {
+						if cur.Cmp(minVal) < 0 {
+							verr.add(field, fmt.Sprintf("must be >= %s", minVal.String()))
 						}
 					}
 				}
 				if st.MaxInclusive != nil {
-					if max, err := decimal.NewFromString(strings.TrimSpace(*st.MaxInclusive)); err == nil {
-						if cur.Cmp(max) > 0 {
-							verr.add(field, fmt.Sprintf("must be <= %s", max.String()))
+					if maxVal, err := decimal.NewFromString(strings.TrimSpace(*st.MaxInclusive)); err == nil {
+						if cur.Cmp(maxVal) > 0 {
+							verr.add(field, fmt.Sprintf("must be <= %s", maxVal.String()))
 						}
 					}
 				}
 				if st.MinExclusive != nil {
-					if min, err := decimal.NewFromString(strings.TrimSpace(*st.MinExclusive)); err == nil {
-						if cur.Cmp(min) <= 0 {
-							verr.add(field, fmt.Sprintf("must be > %s", min.String()))
+					if minVal, err := decimal.NewFromString(strings.TrimSpace(*st.MinExclusive)); err == nil {
+						if cur.Cmp(minVal) <= 0 {
+							verr.add(field, fmt.Sprintf("must be > %s", minVal.String()))
 						}
 					}
 				}
 				if st.MaxExclusive != nil {
-					if max, err := decimal.NewFromString(strings.TrimSpace(*st.MaxExclusive)); err == nil {
-						if cur.Cmp(max) >= 0 {
-							verr.add(field, fmt.Sprintf("must be < %s", max.String()))
+					if maxVal, err := decimal.NewFromString(strings.TrimSpace(*st.MaxExclusive)); err == nil {
+						if cur.Cmp(maxVal) >= 0 {
+							verr.add(field, fmt.Sprintf("must be < %s", maxVal.String()))
 						}
 					}
 				}

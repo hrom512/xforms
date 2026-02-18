@@ -365,7 +365,7 @@ func TestElements_ComplexTypeBindType_ProducesComplexInputWithComplexType(t *tes
 	}
 }
 
-func TestMarkerMethods_FormElements(t *testing.T) {
+func TestMarkerMethods_FormElements(_ *testing.T) {
 	// These are marker methods; calling them increases coverage without changing behavior.
 	(&TextInput{}).FormElement()
 	(&DecimalInput{}).FormElement()

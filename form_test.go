@@ -128,7 +128,7 @@ func TestSchemaSimpleTypeFacets_AreParsed(t *testing.T) {
 	}
 }
 
-func TestMarkerMethods_FormBodyElements(t *testing.T) {
+func TestMarkerMethods_FormBodyElements(_ *testing.T) {
 	// These are marker methods; calling them increases coverage without changing behavior.
 	(&FormBodyGroup{}).formBodyElement()
 	(&FormBodyInput{}).formBodyElement()

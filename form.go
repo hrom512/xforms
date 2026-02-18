@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Form is a parsed XForms document (schema, instance, binds, submissions, body).
 type Form struct {
 	Schema      FormSchema
 	Instance    FormInstance
@@ -16,6 +17,7 @@ type Form struct {
 	Body        FormBody
 }
 
+// FormSchema contains parsed XSD schema information used for typing and validation.
 type FormSchema struct {
 	TargetNamespace string
 
@@ -25,6 +27,7 @@ type FormSchema struct {
 	Elements     map[string]*FormSchemaElementDecl
 }
 
+// FormSchemaSimpleType represents an XSD simpleType with a supported subset of facets.
 type FormSchemaSimpleType struct {
 	Name          string
 	BaseTypeQName string // e.g. xsd:string, xsd:decimal, xsd:boolean
@@ -43,6 +46,7 @@ type FormSchemaSimpleType struct {
 	MaxExclusive *string
 }
 
+// FormSchemaComplexType represents an XSD complexType (currently: xsd:all only).
 type FormSchemaComplexType struct {
 	Name string
 
@@ -50,11 +54,13 @@ type FormSchemaComplexType struct {
 	All []FormSchemaElementDecl
 }
 
+// FormInstance stores the instance root and its direct child fields.
 type FormInstance struct {
 	Root   xml.Name
 	Fields map[string]FormInstanceField // keyed by local name
 }
 
+// FormBind is a parsed xforms:bind entry.
 type FormBind struct {
 	ID      *string
 	Nodeset string
@@ -75,16 +81,19 @@ type FormBind struct {
 	RawRelevant string
 }
 
+// FormSubmission is a parsed xforms:submission entry.
 type FormSubmission struct {
 	ID     string
 	Action string
 	Method string
 }
 
+// FormBody contains parsed body controls as internal elements.
 type FormBody struct {
 	Elements []FormBodyElement
 }
 
+// FormSchemaElementDecl is an XSD element declaration.
 type FormSchemaElementDecl struct {
 	Name      string
 	TypeQName string // may be empty if ComplexType is provided inline
@@ -93,6 +102,7 @@ type FormSchemaElementDecl struct {
 	ComplexType *FormSchemaComplexType
 }
 
+// FormInstanceField is a direct child field under instance root.
 type FormInstanceField struct {
 	Name  string
 	Value string
@@ -103,6 +113,7 @@ type FormInstanceField struct {
 
 var intertagWhitespace = regexp.MustCompile(`>\s+<`)
 
+// Clone returns a deep copy of the instance fields map.
 func (fi FormInstance) Clone() FormInstance {
 	out := FormInstance{
 		Root:   fi.Root,
@@ -120,6 +131,7 @@ type FormBodyElement interface {
 	formBodyElement()
 }
 
+// FormBodyGroup represents a parsed group control (xforms:group).
 type FormBodyGroup struct {
 	ID       *string
 	Label    string
@@ -128,6 +140,7 @@ type FormBodyGroup struct {
 
 func (*FormBodyGroup) formBodyElement() {}
 
+// FormBodyInput represents a parsed input control (xforms:input).
 type FormBodyInput struct {
 	ID          *string
 	Ref         string
@@ -141,6 +154,7 @@ type FormBodyInput struct {
 
 func (*FormBodyInput) formBodyElement() {}
 
+// FormBodySelect represents a parsed select/select1 control.
 type FormBodySelect struct {
 	ID       *string
 	Ref      string
@@ -154,6 +168,7 @@ type FormBodySelect struct {
 	Items []FormBodySelectItem
 }
 
+// FormBodySelectItem represents a select item (label/value).
 type FormBodySelectItem struct {
 	Label string
 	Value string
@@ -161,6 +176,7 @@ type FormBodySelectItem struct {
 
 func (*FormBodySelect) formBodyElement() {}
 
+// FormBodyOutput represents a parsed output control (xforms:output).
 type FormBodyOutput struct {
 	ID  *string
 	Ref *string
@@ -172,6 +188,7 @@ type FormBodyOutput struct {
 
 func (*FormBodyOutput) formBodyElement() {}
 
+// UnmarshalXML implements custom decoding for XSD schema.
 func (s *FormSchema) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	*s = FormSchema{
 		SimpleTypes:  map[string]*FormSchemaSimpleType{},
@@ -242,6 +259,7 @@ func (s *FormSchema) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 	}
 }
 
+// UnmarshalXML implements custom decoding for xforms:instance.
 func (fi *FormInstance) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	*fi = FormInstance{Fields: map[string]FormInstanceField{}}
 
@@ -309,6 +327,7 @@ func (fi *FormInstance) decodeInstanceRoot(d *xml.Decoder, root xml.StartElement
 	}
 }
 
+// UnmarshalXML implements custom decoding for xforms:body.
 func (b *FormBody) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	*b = FormBody{}
 	for {
@@ -333,12 +352,29 @@ func (b *FormBody) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	}
 }
 
+const (
+	xmlAttrID          = "id"
+	xmlAttrRef         = "ref"
+	xmlAttrIncremental = "incremental"
+
+	xmlElLabel = "label"
+	xmlElAlert = "alert"
+	xmlElHelp  = "help"
+	xmlElHint  = "hint"
+
+	xmlElItem  = "item"
+	xmlElValue = "value"
+
+	xmlControlSelect  = "select"
+	xmlControlSelect1 = "select1"
+)
+
 func decodeFormBodyElement(d *xml.Decoder, start xml.StartElement) (FormBodyElement, error) {
 	switch start.Name.Local {
 	case "group":
 		g := &FormBodyGroup{}
 		for _, a := range start.Attr {
-			if a.Name.Local == "id" {
+			if a.Name.Local == xmlAttrID {
 				v := a.Value
 				g.ID = &v
 				break
@@ -352,7 +388,7 @@ func decodeFormBodyElement(d *xml.Decoder, start xml.StartElement) (FormBodyElem
 			switch t := tok.(type) {
 			case xml.StartElement:
 				switch t.Name.Local {
-				case "label":
+				case xmlElLabel:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
@@ -378,12 +414,12 @@ func decodeFormBodyElement(d *xml.Decoder, start xml.StartElement) (FormBodyElem
 		in := &FormBodyInput{}
 		for _, a := range start.Attr {
 			switch a.Name.Local {
-			case "id":
+			case xmlAttrID:
 				v := a.Value
 				in.ID = &v
-			case "ref":
+			case xmlAttrRef:
 				in.Ref = a.Value
-			case "incremental":
+			case xmlAttrIncremental:
 				// Optional, ignore parse errors (leave nil).
 				if bv, err := strconv.ParseBool(a.Value); err == nil {
 					in.Incremental = &bv
@@ -398,25 +434,25 @@ func decodeFormBodyElement(d *xml.Decoder, start xml.StartElement) (FormBodyElem
 			switch t := tok.(type) {
 			case xml.StartElement:
 				switch t.Name.Local {
-				case "label":
+				case xmlElLabel:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
 					}
 					in.Label = txt
-				case "alert":
+				case xmlElAlert:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
 					}
 					in.Alert = txt
-				case "help":
+				case xmlElHelp:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
 					}
 					in.Help = txt
-				case "hint":
+				case xmlElHint:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
@@ -438,14 +474,14 @@ func decodeFormBodyElement(d *xml.Decoder, start xml.StartElement) (FormBodyElem
 			}
 		}
 
-	case "select1", "select":
-		sel := &FormBodySelect{Multiple: start.Name.Local == "select"}
+	case xmlControlSelect1, xmlControlSelect:
+		sel := &FormBodySelect{Multiple: start.Name.Local == xmlControlSelect}
 		for _, a := range start.Attr {
 			switch a.Name.Local {
-			case "id":
+			case xmlAttrID:
 				v := a.Value
 				sel.ID = &v
-			case "ref":
+			case xmlAttrRef:
 				sel.Ref = a.Value
 			}
 		}
@@ -457,31 +493,31 @@ func decodeFormBodyElement(d *xml.Decoder, start xml.StartElement) (FormBodyElem
 			switch t := tok.(type) {
 			case xml.StartElement:
 				switch t.Name.Local {
-				case "label":
+				case xmlElLabel:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
 					}
 					sel.Label = txt
-				case "alert":
+				case xmlElAlert:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
 					}
 					sel.Alert = txt
-				case "help":
+				case xmlElHelp:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
 					}
 					sel.Help = txt
-				case "hint":
+				case xmlElHint:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
 					}
 					sel.Hint = txt
-				case "item":
+				case xmlElItem:
 					item, err := decodeSelectItem(d, t)
 					if err != nil {
 						return nil, err
@@ -506,10 +542,10 @@ func decodeFormBodyElement(d *xml.Decoder, start xml.StartElement) (FormBodyElem
 		out := &FormBodyOutput{}
 		for _, a := range start.Attr {
 			switch a.Name.Local {
-			case "id":
+			case xmlAttrID:
 				v := a.Value
 				out.ID = &v
-			case "ref":
+			case xmlAttrRef:
 				v := a.Value
 				out.Ref = &v
 			}
@@ -522,7 +558,7 @@ func decodeFormBodyElement(d *xml.Decoder, start xml.StartElement) (FormBodyElem
 			switch t := tok.(type) {
 			case xml.StartElement:
 				switch t.Name.Local {
-				case "label":
+				case xmlElLabel:
 					txt, err := decodeTextElement(d, t)
 					if err != nil {
 						return nil, err
@@ -569,13 +605,13 @@ func decodeSelectItem(d *xml.Decoder, start xml.StartElement) (FormBodySelectIte
 		switch t := tok.(type) {
 		case xml.StartElement:
 			switch t.Name.Local {
-			case "label":
+			case xmlElLabel:
 				txt, err := decodeTextElement(d, t)
 				if err != nil {
 					return item, err
 				}
 				item.Label = txt
-			case "value":
+			case xmlElValue:
 				txt, err := decodeTextElement(d, t)
 				if err != nil {
 					return item, err
@@ -752,11 +788,11 @@ func (el xsdElementXML) toForm() (*FormSchemaElementDecl, error) {
 		Name:      el.Name,
 		TypeQName: el.Type,
 	}
-	if b, err := parseOptionalBoolAttr(el.Nillable); err != nil {
+	b, err := parseOptionalBoolAttr(el.Nillable)
+	if err != nil {
 		return nil, err
-	} else {
-		out.Nillable = b
 	}
+	out.Nillable = b
 	if el.ComplexType != nil {
 		ct, err := el.ComplexType.toForm()
 		if err != nil {

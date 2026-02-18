@@ -377,6 +377,10 @@ func TestFullXFormsExample_Valid_EndToEnd(t *testing.T) {
 
 func readFixture(t *testing.T, name string) string {
 	t.Helper()
+	if filepath.Base(name) != name {
+		t.Fatalf("invalid fixture name %q", name)
+	}
+	//nolint:gosec // fixture name is validated and read from testdata
 	b, err := os.ReadFile(filepath.Join("testdata", name))
 	if err != nil {
 		t.Fatalf("read fixture %q: %v", name, err)

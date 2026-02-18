@@ -294,10 +294,10 @@ func TestValidate_DecimalBounds_AndInvalidSchemaPattern(t *testing.T) {
   <body><input ref="d"><label>D</label></input></body>
 </html>`,
 			wantErr: func() *ValidationError {
-				max, _ := decimal.NewFromString("10.0")
+				maxVal, _ := decimal.NewFromString("10.0")
 				return &ValidationError{
 					FieldErrors: map[string][]string{
-						"d": {"must be < " + max.String()},
+						"d": {"must be < " + maxVal.String()},
 					},
 				}
 			}(),

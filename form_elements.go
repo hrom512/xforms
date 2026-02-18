@@ -13,6 +13,13 @@ type FormElement interface {
 	FormElement()
 }
 
+const (
+	xsdLocalString  = "string"
+	xsdLocalDecimal = "decimal"
+	xsdLocalBoolean = "boolean"
+)
+
+// TextInput represents an input bound to a string-ish schema type.
 type TextInput struct {
 	Name  string
 	Label string
@@ -31,8 +38,10 @@ type TextInput struct {
 	Value *string
 }
 
+// FormElement marks TextInput as a FormElement.
 func (*TextInput) FormElement() {}
 
+// DecimalInput represents an input bound to a decimal schema type.
 type DecimalInput struct {
 	Name  string
 	Label string
@@ -51,8 +60,10 @@ type DecimalInput struct {
 	Value *decimal.Decimal
 }
 
+// FormElement marks DecimalInput as a FormElement.
 func (*DecimalInput) FormElement() {}
 
+// CheckboxInput represents an input bound to a boolean schema type.
 type CheckboxInput struct {
 	Name  string
 	Label string
@@ -67,8 +78,10 @@ type CheckboxInput struct {
 	Value *bool
 }
 
+// FormElement marks CheckboxInput as a FormElement.
 func (*CheckboxInput) FormElement() {}
 
+// SelectInput represents a select/select1 control.
 type SelectInput struct {
 	Name  string
 	Label string
@@ -85,11 +98,13 @@ type SelectInput struct {
 	Value *SelectOption
 }
 
+// SelectOption is a (label, value) item in a SelectInput.
 type SelectOption struct {
 	Label string
 	Value string
 }
 
+// FormElement marks SelectInput as a FormElement.
 func (*SelectInput) FormElement() {}
 
 // ComplexInput represents an input bound to an XSD complexType.
@@ -119,20 +134,25 @@ type ComplexInput struct {
 	Value map[string]string
 }
 
+// FormElement marks ComplexInput as a FormElement.
 func (*ComplexInput) FormElement() {}
 
+// TextMessage represents an output control (treated as a message).
 type TextMessage struct {
 	Message string
 	ID      *string
 }
 
+// FormElement marks TextMessage as a FormElement.
 func (*TextMessage) FormElement() {}
 
+// FieldGroup groups nested elements under a group label.
 type FieldGroup struct {
 	Label    string
 	Elements []FormElement
 }
 
+// FormElement marks FieldGroup as a FormElement.
 func (*FieldGroup) FormElement() {}
 
 // Elements parses form and returns a convenient list of form elements
@@ -227,7 +247,7 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 		// Choose element type from base simple type.
 		if st := simpleType; st != nil {
 			switch qnameLocal(st.BaseTypeQName) {
-			case "boolean":
+			case xsdLocalBoolean:
 				ci := &CheckboxInput{
 					Name:       name,
 					Label:      t.Label,
@@ -245,7 +265,7 @@ func (f *Form) convertBodyElement(el FormBodyElement, bindByField map[string]*Fo
 					}
 				}
 				return ci
-			case "decimal":
+			case xsdLocalDecimal:
 				di := &DecimalInput{
 					Name:       name,
 					Label:      t.Label,
@@ -391,7 +411,7 @@ func (f *Form) resolveSchemaTypeQName(typeQName string) (*FormSchemaSimpleType, 
 
 	// Built-in XSD types are represented as a synthetic simple type.
 	switch local {
-	case "string", "decimal", "boolean":
+	case xsdLocalString, xsdLocalDecimal, xsdLocalBoolean:
 		return &FormSchemaSimpleType{
 			Name:          local,
 			BaseTypeQName: "xsd:" + local,

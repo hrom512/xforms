@@ -6,6 +6,7 @@ import (
 	"io"
 )
 
+// Parse reads an XForms document from input and returns a parsed Form.
 func Parse(input io.Reader) (*Form, error) {
 	dec := xml.NewDecoder(input)
 
